@@ -2,377 +2,372 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Liminal Gothic: LB1</title>
-    
-    <script src="https://yandex.ru/games/sdk/v2"></script>
-    
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KafeKrematory Launcher</title>
     <style>
-        html, body { 
-            width: 100%; height: 100%; margin: 0; padding: 0; 
-            overflow: hidden; background: #000; 
-            font-family: 'Courier New', monospace; color: #d0a0a0;
-            touch-action: none; user-select: none; -webkit-user-select: none;
+        :root {
+            --bg-color: #ffffff;
+            --text-color: #000000;
+            --accent-color: #000000;
+            --border-width: 3px;
         }
 
-        #game-container { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; }
-        #ui-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 10; pointer-events: none; }
-
-        .hud-top {
-            position: absolute; top: 15px; left: 15px; right: 15px;
-            display: flex; justify-content: space-between;
-            font-size: 18px; font-weight: bold;
-            text-shadow: 2px 2px 4px #000; pointer-events: none;
-        }
-        .hud-score { color: #ffbd77; }
-
-        #vignette {
-            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            background: radial-gradient(circle, transparent 50%, black 150%);
-            z-index: 5; opacity: 0.8; pointer-events: none;
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
         }
 
-        /* ДЖОЙСТИК */
-        #joystick-container {
-            position: absolute; bottom: 140px; left: 50%; transform: translateX(-50%);
-            width: 180px; height: 180px; pointer-events: auto; z-index: 100;
-        }
-        #joystick-base {
-            width: 100%; height: 100%;
-            background: rgba(255, 255, 255, 0.05);
-            border: 2px solid rgba(255, 255, 255, 0.2);
-            border-radius: 50%; position: relative; backdrop-filter: blur(2px);
-        }
-        #joystick-knob {
-            width: 70px; height: 70px;
-            background: rgba(200, 180, 180, 0.6);
-            border-radius: 50%; position: absolute;
-            top: 50%; left: 50%; transform: translate(-50%, -50%);
-            box-shadow: 0 0 15px rgba(255,255,255,0.4); pointer-events: none;
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            font-family: 'Courier New', Courier, monospace; /* Техно-стиль */
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
         }
 
-        /* МЕНЮ */
-        .full-screen-overlay {
-            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(15, 10, 15, 0.98); z-index: 999;
-            display: flex; flex-direction: column;
-            justify-content: center; align-items: center;
-            text-align: center; pointer-events: auto;
+        /* --- Эффект "Скоростных линий" (как на лого) --- */
+        .speed-lines {
+            background-image: repeating-linear-gradient(
+                to bottom,
+                #000 0px,
+                #000 2px,
+                transparent 2px,
+                transparent 5px
+            );
+            height: 100%;
+            width: 100%;
         }
-        h1 { margin: 0 0 10px 0; font-size: 32px; color: #d65d5d; letter-spacing: 4px; text-shadow: 0 0 15px #500; }
-        .blink { animation: blink 2s infinite ease-in-out; color: #fff; cursor: pointer; margin-top: 20px; font-size: 20px; text-decoration: underline; padding: 20px; }
-        @keyframes blink { 0%, 100% { opacity: 0.4; } 50% { opacity: 1; } }
 
-        #leaderboard {
-            margin-top: 20px; padding: 15px; border: 1px solid #553333;
-            background: rgba(0,0,0,0.5); width: 280px; min-height: 100px;
+        /* --- Header --- */
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px;
+            border-bottom: var(--border-width) solid var(--accent-color);
+            position: relative;
+            overflow: hidden;
         }
-        #score-list { list-style: none; padding: 0; margin: 0; font-size: 16px; color: #aaa; text-align: left; }
-        #score-list li { display: flex; justify-content: space-between; margin-bottom: 5px; border-bottom: 1px solid #333; padding-bottom: 2px;}
-        #score-list span { color: #d65d5d; }
 
-        #game-over-screen { display: none; background: rgba(50, 0, 0, 0.9); }
-        .big-score { font-size: 50px; color: #fff; margin: 10px 0; text-shadow: 0 0 20px red; }
+        .logo-container {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            z-index: 2;
+            background: #fff;
+            padding-right: 20px;
+        }
+
+        .logo-text {
+            font-size: 2rem;
+            font-weight: 900;
+            text-transform: uppercase;
+            letter-spacing: -1px;
+            font-family: Arial, sans-serif; /* Более массивный шрифт для лого */
+        }
+
+        .logo-lines {
+            height: 30px;
+            width: 100px;
+            /* Вставляем полоски */
+            background-image: repeating-linear-gradient(
+                to bottom,
+                #000 0px,
+                #000 3px,
+                transparent 3px,
+                transparent 6px
+            );
+        }
+
+        /* --- Search Bar --- */
+        .search-container {
+            padding: 20px;
+            display: flex;
+            justify-content: flex-end;
+        }
+
+        #search-input {
+            padding: 10px 15px;
+            border: var(--border-width) solid var(--text-color);
+            background: transparent;
+            font-family: inherit;
+            font-weight: bold;
+            font-size: 1rem;
+            width: 300px;
+            outline: none;
+            transition: 0.2s;
+        }
+
+        #search-input:focus {
+            background: #000;
+            color: #fff;
+        }
+
+        /* --- Game Grid --- */
+        .catalog {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 30px;
+            padding: 20px;
+            max-width: 1400px;
+            margin: 0 auto;
+            width: 100%;
+        }
+
+        .card {
+            border: var(--border-width) solid var(--text-color);
+            display: flex;
+            flex-direction: column;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            position: relative;
+            background: #fff;
+        }
+
+        .card:hover {
+            transform: translate(-5px, -5px);
+            box-shadow: 8px 8px 0px var(--text-color);
+        }
+
+        .card-image {
+            height: 180px;
+            background-color: #ccc;
+            overflow: hidden;
+            position: relative;
+            border-bottom: var(--border-width) solid var(--text-color);
+        }
+
+        .card-image img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            filter: grayscale(100%); /* ЧБ фильтр для картинок */
+            transition: 0.3s;
+        }
+
+        .card:hover .card-image img {
+            filter: grayscale(0%); /* Цвет при наведении */
+        }
+
+        .card-info {
+            padding: 15px;
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        .card-title {
+            font-size: 1.2rem;
+            font-weight: 800;
+            margin-bottom: 5px;
+            text-transform: uppercase;
+        }
+
+        .card-meta {
+            font-size: 0.8rem;
+            color: #555;
+            margin-bottom: 15px;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .play-btn {
+            background: var(--text-color);
+            color: var(--bg-color);
+            border: none;
+            padding: 10px;
+            font-family: inherit;
+            font-weight: bold;
+            text-transform: uppercase;
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .play-btn::after {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: repeating-linear-gradient(
+                45deg,
+                transparent,
+                transparent 5px,
+                rgba(255,255,255,0.2) 5px,
+                rgba(255,255,255,0.2) 10px
+            );
+            opacity: 0;
+            transition: 0.2s;
+        }
+
+        .card:hover .play-btn::after {
+            opacity: 1;
+        }
+
+        /* --- Footer --- */
+        footer {
+            margin-top: auto;
+            padding: 20px;
+            border-top: var(--border-width) solid var(--text-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.8rem;
+        }
+
+        .decoration-line {
+            height: 20px;
+            flex-grow: 1;
+            margin-left: 20px;
+            background-image: repeating-linear-gradient(
+                to right,
+                #000 0px,
+                #000 2px,
+                transparent 2px,
+                transparent 10px
+            );
+        }
+
+        /* Адаптив */
+        @media (max-width: 600px) {
+            header {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+            .logo-lines { display: none; }
+            .search-container { justify-content: flex-start; }
+            #search-input { width: 100%; }
+        }
     </style>
 </head>
 <body>
 
-<div id="start-screen" class="full-screen-overlay">
-    <h1>LIMINAL GOTHIC</h1>
-    <div id="leaderboard">
-        <h3 style="color:#888; margin:0 0 10px 0; border-bottom:1px solid #555;">MEMORIAL (TOP 5)</h3>
-        <ul id="score-list"><li>Connecting...</li></ul>
-    </div>
-    <div class="blink" id="start-btn">[ TAP TO START ]</div>
-</div>
-
-<div id="game-over-screen" class="full-screen-overlay">
-    <h1 style="color: #fff;">YOU DIED</h1>
-    <p>FINAL SCORE</p>
-    <div class="big-score" id="final-score">0</div>
-    <div class="blink" id="restart-btn">[ MENU ]</div>
-</div>
-
-<div id="game-container"></div>
-
-<div id="ui-layer">
-    <div id="vignette"></div>
-    <div class="hud-top">
-        <div>LVL: <span id="ui-level">1</span></div>
-        <div class="hud-score">PTS: <span id="ui-score">0</span></div>
-        <div>HP: <span id="ui-lives">3</span></div>
-    </div>
-    <div id="joystick-container">
-        <div id="joystick-base"><div id="joystick-knob"></div></div>
-    </div>
-</div>
-
-<script type="module">
-import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js';
-
-// --- HYBRID SDK SYSTEM ---
-let ysdk = null;
-let lb = null;
-let isLocalMode = false;
-let initTimeout = null;
-
-// ИМЯ ЛИДЕРБОРДА
-const LB_NAME = 'Leaderboard1';
-
-function renderList(type, data) {
-    const list = document.getElementById('score-list');
-    list.innerHTML = '';
-    if (type === 'yandex' && data.entries.length > 0) {
-        data.entries.forEach(entry => {
-            list.innerHTML += `<li>${entry.rank}. ${entry.player.publicName} <span>${entry.score}</span></li>`;
-        });
-    } else if (type === 'local') {
-        const localScores = JSON.parse(localStorage.getItem('gothic_scores_v3') || '[0,0,0]');
-        localScores.forEach((s, i) => { if(s>0) list.innerHTML += `<li>#${i+1} Local <span>${s}</span></li>`; });
-        if(list.innerHTML === '') list.innerHTML = '<li>No local records</li>';
-    } else {
-        list.innerHTML = '<li>No records yet</li>';
-    }
-}
-
-function initPlatform() {
-    initTimeout = setTimeout(() => {
-        console.warn('Yandex timeout. Switching to local.');
-        isLocalMode = true;
-        renderList('local');
-    }, 3000);
-
-    if (window.YaGames) {
-        YaGames.init()
-            .then(_ysdk => {
-                ysdk = _ysdk;
-                return ysdk.getLeaderboards();
-            })
-            .then(_lb => {
-                clearTimeout(initTimeout);
-                lb = _lb;
-                return lb.getLeaderboardEntries(LB_NAME, { quantity: 5, includeUser: true });
-            })
-            .then(res => {
-                renderList('yandex', res);
-            })
-            .catch(err => {
-                clearTimeout(initTimeout);
-                console.warn('SDK Error:', err);
-                document.getElementById('score-list').innerHTML = '<li>Offline Mode</li>';
-                isLocalMode = true;
-            });
-    } else {
-        clearTimeout(initTimeout);
-        isLocalMode = true;
-        renderList('local');
-    }
-}
-
-function saveScorePlatform(score) {
-    let localScores = JSON.parse(localStorage.getItem('gothic_scores_v3') || '[]');
-    localScores.push(score); localScores.sort((a,b)=>b-a); localScores=localScores.slice(0,5);
-    localStorage.setItem('gothic_scores_v3', JSON.stringify(localScores));
-
-    if (ysdk && lb && !isLocalMode) {
-        lb.setLeaderboardScore(LB_NAME, score).catch(e => console.log('Score err', e));
-    }
-}
-
-function showAd(callback) {
-    if (ysdk && !isLocalMode) {
-        ysdk.adv.showFullscreenAdv({
-            callbacks: {
-                onClose: function(wasShown) { callback(); },
-                onError: function(error) { callback(); }
-            }
-        });
-    } else {
-        callback();
-    }
-}
-
-window.addEventListener('load', initPlatform);
-
-
-// --- GAME LOGIC ---
-const CONFIG = { blockSize: 4, baseMoveSpeed: 0.13, rotSpeed: 0.05, baseGhostSpeed: 0.048, powerDuration: 8000 };
-const gameState = { score: 0, lives: 3, level: 1, playing: false, powerMode: false, dotsLeft: 0 };
-const ui = {
-    score: document.getElementById('ui-score'), lives: document.getElementById('ui-lives'),
-    level: document.getElementById('ui-level'), startScreen: document.getElementById('start-screen'),
-    gameOverScreen: document.getElementById('game-over-screen'), gameUI: document.getElementById('ui-layer'),
-    finalScore: document.getElementById('final-score'), joyBase: document.getElementById('joystick-base'),
-    joyKnob: document.getElementById('joystick-knob')
-};
-
-const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-let audioReady = false; let musicInterval = null;
-
-function sfx(freq, type, dur, vol) {
-    if(!audioReady || audioCtx.state!=='running') return;
-    const o = audioCtx.createOscillator(); const g = audioCtx.createGain();
-    o.type=type; o.frequency.value=freq;
-    g.gain.setValueAtTime(vol, audioCtx.currentTime); g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime+dur);
-    o.connect(g).connect(audioCtx.destination); o.start(); o.stop(audioCtx.currentTime+dur);
-}
-
-function startMusic() {
-    if(musicInterval) clearInterval(musicInterval);
-    let idx = 0; const notes = [65.41, 98.00, 130.81, 155.56];
-    musicInterval = setInterval(() => {
-        if(!gameState.playing && ui.startScreen.style.display!=='none') return;
-        const f = notes[idx++ % 4];
-        sfx(f, 'sawtooth', 1.5, 0.1); 
-    }, 800);
-}
-
-const inputVector = new THREE.Vector2(0, 0);
-let joyCenter = { x: 0, y: 0 }; let isDrag = false;
-
-function joyStart(e) { if(!gameState.playing) return; isDrag=true; const r = ui.joyBase.getBoundingClientRect(); joyCenter={x:r.left+r.width/2, y:r.top+r.height/2}; joyMove(e); }
-function joyMove(e) { 
-    if(!isDrag) return; 
-    const cx = e.touches?e.touches[0].clientX:e.clientX; const cy = e.touches?e.touches[0].clientY:e.clientY;
-    let dx = cx-joyCenter.x; let dy = cy-joyCenter.y;
-    const max = ui.joyBase.offsetWidth/2; const d = Math.sqrt(dx*dx+dy*dy);
-    if(d>max) { const r=max/d; dx*=r; dy*=r; }
-    ui.joyKnob.style.transform=`translate(calc(-50% + ${dx}px),calc(-50% + ${dy}px))`;
-    inputVector.x=dx/max; inputVector.y=-dy/max;
-}
-function joyEnd() { isDrag=false; ui.joyKnob.style.transform=`translate(-50%,-50%)`; inputVector.set(0,0); }
-
-ui.joyBase.addEventListener('pointerdown', joyStart);
-window.addEventListener('pointermove', joyMove);
-window.addEventListener('pointerup', joyEnd);
-window.addEventListener('pointercancel', joyEnd);
-
-// SCENE
-const scene = new THREE.Scene(); scene.fog = new THREE.FogExp2(0x3a2334, 0.08); scene.background = new THREE.Color(0x1a0a1a);
-const camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 80);
-const renderer = new THREE.WebGLRenderer({ antialias: false });
-renderer.setSize(window.innerWidth, window.innerHeight);
-renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
-document.getElementById('game-container').appendChild(renderer.domElement);
-scene.add(new THREE.AmbientLight(0x886677, 0.6));
-
-const rawMap = [
-    [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
-    [1,3,0,0,0,0,0,1,0,0,0,0,0,3,1],
-    [1,0,1,1,1,1,0,1,0,1,1,1,1,0,1],
-    [1,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
-    [1,0,1,1,0,1,1,2,1,1,0,1,1,0,1],
-    [1,0,0,0,0,1,9,9,9,1,0,0,0,0,1],
-    [1,0,1,1,0,1,1,1,1,1,0,1,1,0,1],
-    [1,0,0,0,0,0,0,1,0,0,0,0,0,0,1],
-    [1,0,1,1,1,1,0,1,0,1,1,1,1,0,1],
-    [1,0,1,3,0,0,0,0,0,0,0,3,1,0,1],
-    [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]
-];
-const mapW = rawMap[0].length; const mapH = rawMap.length;
-const matWood = new THREE.MeshStandardMaterial({color: 0x443322});
-const matTree = new THREE.MeshStandardMaterial({color: 0x051105, flatShading:true});
-const matDot = new THREE.MeshBasicMaterial({color: 0xffddaa});
-const matPower = new THREE.MeshStandardMaterial({color: 0xff3333, emissive: 0x550000});
-const floor = new THREE.Mesh(new THREE.PlaneGeometry(100,100), new THREE.MeshBasicMaterial({color: 0x111122}));
-floor.rotation.x = -Math.PI/2; scene.add(floor);
-
-let walls = []; let dots = []; let powers = []; let ghosts = []; let playerStartPos = new THREE.Vector3(0, 1.7, 0);
-
-function createBlock(x, z) {
-    const g = new THREE.Group(); g.position.set(x,0,z);
-    const post = new THREE.Mesh(new THREE.BoxGeometry(0.3,1.8,0.3), matWood);
-    [[-1.9,1.9],[1.9,1.9],[1.9,-1.9],[-1.9,-1.9]].forEach(p=>{const m=post.clone(); m.position.set(p[0],0.9,p[1]); g.add(m)});
-    const t=new THREE.Mesh(new THREE.ConeGeometry(1.2,6,5), matTree); t.position.y=3; g.add(t);
-    scene.add(g); walls.push({x:x, z:z});
-}
-
-class Ghost {
-    constructor(color, x, z) {
-        this.color = color; this.startPos = new THREE.Vector3(x, 2, z);
-        this.mesh = new THREE.Group(); this.mesh.position.copy(this.startPos);
-        const b = new THREE.Mesh(new THREE.CylinderGeometry(0.7,0.4,2.2,8,1,true), new THREE.MeshStandardMaterial({color:color,transparent:true,opacity:0.8,emissive:color,emissiveIntensity:0.2}));
-        b.position.y=1.1; this.mesh.add(b);
-        const e = new THREE.Mesh(new THREE.SphereGeometry(0.25), new THREE.MeshBasicMaterial({color:0xffffff}));
-        const e1=e.clone(); e1.position.set(-0.3,1.5,0.5); const e2=e.clone(); e2.position.set(0.3,1.5,0.5);
-        this.mesh.add(e1,e2); scene.add(this.mesh);
-        this.dir = new THREE.Vector3(1,0,0); this.state = 'normal';
-    }
-    update() {
-        const s = this.state === 'frightened' ? 0.03 : CONFIG.baseGhostSpeed;
-        const np = this.mesh.position.clone().add(this.dir.clone().multiplyScalar(s));
-        if(!checkCol(np)) this.mesh.position.copy(np);
-        else { const a = Math.random()*6.28; this.dir.set(Math.cos(a),0,Math.sin(a)); }
-        this.mesh.position.y = 2 + Math.sin(Date.now()*0.003 + this.mesh.id)*0.2;
-        this.mesh.lookAt(camera.position);
-        this.mesh.children[0].material.color.setHex(this.state==='frightened'?0x5555ff:this.color);
-    }
-}
-function checkCol(p) { for(let w of walls) if(Math.abs(p.x-w.x)<2.2 && Math.abs(p.z-w.z)<2.2) return true; return false; }
-
-function buildLevel() {
-    ghosts.forEach(g=>scene.remove(g.mesh)); ghosts=[];
-    dots.forEach(d=>scene.remove(d)); dots=[]; powers.forEach(p=>scene.remove(p)); powers=[];
-    const exists = walls.length > 0; gameState.dotsLeft=0;
-    for(let z=0; z<mapH; z++) for(let x=0; x<mapW; x++) {
-        const t=rawMap[z][x]; const wx=(x-mapW/2)*4; const wz=(z-mapH/2)*4;
-        if(!exists && t===1) createBlock(wx,wz);
-        if(t===0) { const d=new THREE.Mesh(new THREE.SphereGeometry(0.3),matDot); d.position.set(wx,1,wz); scene.add(d); dots.push(d); gameState.dotsLeft++; }
-        if(t===3) { const p=new THREE.Mesh(new THREE.DodecahedronGeometry(0.6),matPower); p.position.set(wx,1,wz); scene.add(p); powers.push(p); }
-        if(t===2) playerStartPos.set(wx,1.7,wz);
-        if(t===9) ghosts.push(new Ghost(0xaa0000,wx,wz));
-    }
-    camera.position.copy(playerStartPos); camera.rotation.set(0,0,0);
-}
-
-function startGame() {
-    ui.startScreen.style.display='none'; ui.gameOverScreen.style.display='none';
-    gameState.score=0; gameState.lives=3; gameState.level=1;
-    ui.score.innerText='0'; ui.lives.innerText='3';
-    if(audioCtx.state==='suspended') audioCtx.resume();
-    audioReady=true; startMusic(); buildLevel(); gameState.playing=true;
-}
-function gameOver() {
-    gameState.playing=false; saveScorePlatform(gameState.score);
-    ui.finalScore.innerText=gameState.score; ui.gameUI.style.display='none'; ui.gameOverScreen.style.display='flex';
-}
-function toMenu() { showAd(()=>{ ui.gameOverScreen.style.display='none'; ui.startScreen.style.display='flex'; ui.gameUI.style.display='block'; if(!isLocalMode) renderList('yandex', {entries:[]}); initPlatform(); }); }
-
-document.getElementById('start-btn').addEventListener('click', startGame);
-document.getElementById('restart-btn').addEventListener('click', toMenu);
-
-const axe=new THREE.Group(); 
-const ah=new THREE.Mesh(new THREE.BoxGeometry(0.1,1.5,0.1),matWood); const ab=new THREE.Mesh(new THREE.BoxGeometry(0.4,0.3,0.05),new THREE.MeshStandardMaterial({color:0x555566}));
-ah.position.y=-0.5; ab.position.set(0.15,0.2,0); axe.add(ah,ab); axe.position.set(0.5,-0.6,-1); axe.rotation.set(0.3,-0.2,0); camera.add(axe);
-const fwd = new THREE.Vector3();
-
-function animate() {
-    requestAnimationFrame(animate);
-    if(gameState.playing) {
-        camera.rotation.y -= inputVector.x * CONFIG.rotSpeed;
-        fwd.set(0,0,-1).applyQuaternion(camera.quaternion).normalize();
-        const np = camera.position.clone();
-        const s = inputVector.y > 0 ? CONFIG.baseMoveSpeed : CONFIG.baseMoveSpeed * 0.6;
-        if(Math.abs(inputVector.y) > 0.1) {
-            np.add(fwd.multiplyScalar(inputVector.y * s));
-            if(!checkCol(np)) { camera.position.copy(np); camera.position.y = 1.7+Math.sin(Date.now()*0.015)*0.05; axe.position.y = -0.6+Math.sin(Date.now()*0.015)*0.03; }
-        } else axe.position.y = THREE.MathUtils.lerp(axe.position.y, -0.6, 0.1);
-
-        for(let i=dots.length-1; i>=0; i--) if(camera.position.distanceTo(dots[i].position)<1) { scene.remove(dots[i]); dots.splice(i,1); gameState.score+=10; ui.score.innerText=gameState.score; gameState.dotsLeft--; sfx(880,'square',0.1,0.1); if(gameState.dotsLeft===0){gameState.level++; buildLevel();} }
-        for(let i=powers.length-1; i>=0; i--) if(camera.position.distanceTo(powers[i].position)<1) { scene.remove(powers[i]); powers.splice(i,1); gameState.powerMode=true; ghosts.forEach(g=>g.state='frightened'); setTimeout(()=>{gameState.powerMode=false; ghosts.forEach(g=>g.state='normal');}, CONFIG.powerDuration); sfx(200,'sawtooth',0.5,0.3); }
+    <header>
+        <div class="logo-lines" style="position: absolute; right: 0; top: 20px; width: 40%; opacity: 0.3; z-index: 1;"></div>
         
-        ghosts.forEach(g => {
-            g.update();
-            if(camera.position.distanceTo(g.mesh.position) < 1.5) {
-                if(g.state==='frightened') { g.mesh.position.y=-10; gameState.score+=200; ui.score.innerText=gameState.score; sfx(400,'triangle',0.3,0.3); }
-                else if(g.state==='normal') { gameState.lives--; ui.lives.innerText=gameState.lives; camera.position.copy(playerStartPos); sfx(100,'sawtooth',0.5,0.5); if(gameState.lives<=0) gameOver(); }
+        <div class="logo-container">
+            <div style="font-size: 3rem; line-height: 1;">☠</div> 
+            <div class="logo-text">
+                KAFE<br>KREMATORY
+            </div>
+        </div>
+        
+        <nav style="z-index: 2; font-weight: bold;">
+            [v.1.0_BETA]
+        </nav>
+    </header>
+
+    <div class="search-container">
+        <input type="text" id="search-input" placeholder="ПОИСК СИМУЛЯЦИИ...">
+    </div>
+
+    <main class="catalog" id="game-container">
+        </main>
+
+    <footer>
+        <div>© 2024 KafeKrematory. Творческое объединение.</div>
+        <div class="decoration-line"></div>
+    </footer>
+
+    <script>
+        // --- 1. Данные об играх ---
+        // Чтобы добавить игру, просто добавь новый объект в этот массив.
+        const games = [
+            {
+                id: 1,
+                title: "Cyber Skull Runner",
+                genre: "Platformer",
+                version: "v0.9",
+                image: "https://placehold.co/600x400/000000/FFF?text=RUNNER", // Замени на путь к картинке
+                link: "#"
+            },
+            {
+                id: 2,
+                title: "Neuro-Glitch",
+                genre: "Puzzle",
+                version: "v1.2",
+                image: "https://placehold.co/600x400/000000/FFF?text=GLITCH",
+                link: "#"
+            },
+            {
+                id: 3,
+                title: "Void Drifter",
+                genre: "Racing",
+                version: "v0.5 alpha",
+                image: "https://placehold.co/600x400/000000/FFF?text=DRIFTER",
+                link: "#"
+            },
+            {
+                id: 4,
+                title: "Bone Breaker Z",
+                genre: "Action",
+                version: "Release",
+                image: "https://placehold.co/600x400/000000/FFF?text=BONE+Z",
+                link: "#"
+            },
+            {
+                id: 5,
+                title: "Terminal Hacking",
+                genre: "Simulation",
+                version: "v2.0",
+                image: "https://placehold.co/600x400/000000/FFF?text=HACK",
+                link: "#"
             }
+        ];
+
+        // --- 2. Логика рендеринга ---
+        const container = document.getElementById('game-container');
+        const searchInput = document.getElementById('search-input');
+
+        function renderGames(filterText = '') {
+            container.innerHTML = ''; // Очистка
+
+            const filteredGames = games.filter(game => 
+                game.title.toLowerCase().includes(filterText.toLowerCase())
+            );
+
+            if (filteredGames.length === 0) {
+                container.innerHTML = '<div style="grid-column: 1/-1; text-align: center;">// ОБЪЕКТЫ НЕ ОБНАРУЖЕНЫ</div>';
+                return;
+            }
+
+            filteredGames.forEach(game => {
+                const card = document.createElement('div');
+                card.className = 'card';
+                card.onclick = () => {
+                    // Здесь логика запуска. Пока просто алерт.
+                    alert(`Инициализация запуска: ${game.title}...`);
+                    // window.location.href = game.link; // Раскомментируй для реального перехода
+                };
+
+                card.innerHTML = `
+                    <div class="card-image">
+                        <img src="${game.image}" alt="${game.title}">
+                    </div>
+                    <div class="card-info">
+                        <div>
+                            <div class="card-title">${game.title}</div>
+                            <div class="card-meta">
+                                <span>TYPE: ${game.genre}</span>
+                                <span>${game.version}</span>
+                            </div>
+                        </div>
+                        <button class="play-btn">ЗАПУСК ></button>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        // --- 3. Инициализация и поиск ---
+        renderGames(); // Первый рендер
+
+        searchInput.addEventListener('input', (e) => {
+            renderGames(e.target.value);
         });
-    }
-    renderer.render(scene, camera);
-}
-animate();
-window.addEventListener('resize', () => { camera.aspect = window.innerWidth/window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth, window.innerHeight); });
-</script>
+
+    </script>
 </body>
 </html>
