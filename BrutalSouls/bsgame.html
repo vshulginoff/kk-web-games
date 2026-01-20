@@ -1,0 +1,571 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Mutant Arcade: FINAL</title>
+    <style>
+        /* --- VISUAL CORE --- */
+        * { box-sizing: border-box; touch-action: none; user-select: none; -webkit-tap-highlight-color: transparent; }
+        body { margin: 0; padding: 0; background: #000; font-family: 'Courier New', monospace; overflow: hidden; position: fixed; top: 0; left: 0; bottom: 0; right: 0; display: flex; flex-direction: column; }
+
+        #game-container {
+            flex: 1; position: relative; background: #100020;
+            display: flex; justify-content: center; align-items: center;
+            border-bottom: 4px solid #111;
+            box-shadow: inset 0 0 60px rgba(0,0,0,0.8);
+        }
+        
+        /* CRT SCANLINE OVERLAY */
+        #game-container::after {
+            content: " "; display: block; position: absolute;
+            top: 0; left: 0; bottom: 0; right: 0;
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
+            z-index: 20; background-size: 100% 2px, 3px 100%; pointer-events: none;
+        }
+
+        canvas { image-rendering: pixelated; width: 100%; height: 100%; object-fit: contain; }
+
+        /* UI LAYER */
+        #ui-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 30; }
+        
+        .hud-panel { position: absolute; top: 10px; width: 44%; padding: 2px; display: flex; flex-direction: column; gap: 2px; }
+        #p1-hud { left: 10px; }
+        #p2-hud { right: 10px; align-items: flex-end; }
+
+        .name-tag { color: #fff; font-size: 10px; font-weight: bold; text-transform: uppercase; letter-spacing: 1px; text-shadow: 2px 2px 0 #000; }
+        .hp-bg { width: 100%; height: 14px; background: #400; border: 2px solid #fff; box-shadow: 2px 2px 0 #000; }
+        .hp-fill { height: 100%; background: #f90; width: 100%; transition: width 0.1s; }
+        .st-bg { width: 100%; height: 6px; background: #111; border: 1px solid #666; }
+        .st-fill { height: 100%; background: #4f4; width: 100%; }
+        
+        .top-bar { position: absolute; top: 5px; width: 100%; text-align: center; color: #ff0; font-weight: bold; font-size: 14px; z-index: 35; text-shadow: 1px 1px 0 #000; }
+
+        /* MESSAGES */
+        #center-msg { position: absolute; top: 35%; left: 50%; transform: translate(-50%, -50%); display: none; z-index: 100; text-align: center; width: 100%; }
+        .msg-t { font-size: 50px; color: #ff0; font-weight: 900; text-shadow: 4px 4px 0 #d00; font-family: sans-serif; -webkit-text-stroke: 1px #000; font-style: italic; }
+
+        /* MENU SCREENS */
+        .overlay { position: absolute; top:0; left:0; width:100%; height:100%; background: #000; display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 200; }
+        
+        /* LADDER */
+        .ladder-item { margin: 8px; padding: 10px 20px; border: 2px solid #333; width: 220px; text-align: center; color: #555; background: #111; font-family: sans-serif; font-weight: bold; }
+        .ladder-active { border-color: #f00; color: #fff; background: #300; transform: scale(1.1); box-shadow: 0 0 20px #f00; }
+        .ladder-done { border-color: #060; color: #0a0; text-decoration: line-through; opacity: 0.5; }
+
+        /* CONTROLLER */
+        #controller {
+            height: 240px; min-height: 240px; background: #222;
+            position: relative; padding-bottom: env(safe-area-inset-bottom, 20px);
+            display: flex; justify-content: space-between; padding: 0 20px;
+            border-top: 4px solid #111; z-index: 50;
+        }
+        #dpad { width: 140px; height: 140px; position: relative; top: 30px; }
+        .d-bg { width: 100%; height: 100%; background: #111; border-radius: 8px; border: 2px solid #444; }
+        .d-cross { 
+            position: absolute; top: 15%; left: 15%; width: 70%; height: 70%; 
+            background: #000; clip-path: polygon(35% 0, 65% 0, 65% 35%, 100% 35%, 100% 65%, 65% 65%, 65% 100%, 35% 100%, 35% 65%, 0 65%, 0 35%, 35% 35%);
+            border: 2px solid #555; box-shadow: inset 0 0 10px #222; pointer-events: none;
+        }
+
+        #btns { width: 180px; height: 140px; position: relative; top: 30px; }
+        .ctrl-btn {
+            position: absolute; width: 60px; height: 60px; border-radius: 50%;
+            background: #a00; border: 3px solid #600;
+            color: #fff; font-weight: bold; display: flex; justify-content: center; align-items: center;
+            box-shadow: 0 5px 0 #300; font-size: 16px; font-family: sans-serif; cursor: pointer;
+        }
+        .ctrl-btn:active { transform: translateY(5px); box-shadow: none; filter: brightness(1.2); }
+        .btn-a { bottom: 15px; left: 0; background: #333; border-color: #111; color: #aaa; } 
+        .btn-b { bottom: 35px; left: 65px; } 
+        .btn-c { bottom: 75px; left: 125px; }
+    </style>
+</head>
+<body>
+
+<div id="game-container">
+    <canvas id="game"></canvas>
+    
+    <div id="ui-layer">
+        <div class="top-bar">SCORE: <span id="score">0</span></div>
+        <div id="p1-hud" class="hud-panel">
+            <div class="name-tag" style="color:#4f4">HERO</div>
+            <div class="hp-bg"><div id="hp1" class="hp-fill"></div></div>
+            <div class="st-bg"><div id="st1" class="st-fill"></div></div>
+        </div>
+        <div id="p2-hud" class="hud-panel">
+            <div class="name-tag" id="enemy-name" style="color:#f88">ENEMY</div>
+            <div class="hp-bg"><div id="hp2" class="hp-fill" style="background:#d22"></div></div>
+            <div class="st-bg"><div id="st2" class="st-fill"></div></div>
+        </div>
+        <div id="center-msg"><div id="msg-txt" class="msg-t"></div></div>
+    </div>
+
+    <div id="menu" class="overlay">
+        <h1 style="color:#0f0; font-family: sans-serif; font-size: 40px; text-shadow: 4px 4px #408; font-style: italic; margin-bottom: 20px;">MUTANT<br>ARCADE</h1>
+        <div style="background:#d00; color:#fff; padding:15px 50px; font-weight:bold; cursor:pointer; border:2px solid #fff; box-shadow: 0 0 20px #f00;" onclick="startArcade()">INSERT COIN</div>
+        <div style="margin-top:20px; color:#666; font-size:12px;">LEADERBOARD</div>
+        <div id="scores" style="color:#888; font-size:12px; margin-top:5px;"></div>
+    </div>
+
+    <div id="ladder" class="overlay" style="display:none;">
+        <h2 style="color:#fff; letter-spacing: 5px;">TOWER</h2>
+        <div id="lad-3" class="ladder-item">3. PHANTOM</div>
+        <div id="lad-2" class="ladder-item">2. MUTANT</div>
+        <div id="lad-1" class="ladder-item">1. ROGUE NINJA</div>
+    </div>
+</div>
+
+<div id="controller">
+    <div id="dpad"><div class="d-bg"></div><div class="d-cross"></div></div>
+    <div id="btns">
+        <div class="ctrl-btn btn-a" data-k="blk">A</div>
+        <div class="ctrl-btn btn-b" data-k="lit">B</div>
+        <div class="ctrl-btn btn-c" data-k="hvy">C</div>
+    </div>
+</div>
+
+<script>
+    // --- AUDIO SYSTEM ---
+    const AudioEngine = {
+        ctx: null,
+        init: function() {
+            window.AudioContext = window.AudioContext || window.webkitAudioContext;
+            this.ctx = new AudioContext();
+        },
+        play: function(type) {
+            if(!this.ctx) return;
+            const t = this.ctx.currentTime;
+            const g = this.ctx.createGain();
+            g.connect(this.ctx.destination);
+
+            if(type === 'hit' || type === 'hvy') {
+                let osc = this.ctx.createOscillator();
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(type==='hvy'?60:100, t);
+                osc.frequency.exponentialRampToValueAtTime(10, t+0.2);
+                
+                let noise = this.ctx.createBufferSource();
+                let b = this.ctx.createBuffer(1, this.ctx.sampleRate*0.1, this.ctx.sampleRate);
+                let d = b.getChannelData(0);
+                for(let i=0; i<d.length; i++) d[i] = Math.random()*2-1;
+                noise.buffer = b;
+
+                osc.connect(g); noise.connect(g);
+                g.gain.setValueAtTime(1, t); g.gain.exponentialRampToValueAtTime(0.01, t+0.2);
+                osc.start(); noise.start();
+            }
+            if(type === 'parry') {
+                let osc = this.ctx.createOscillator(); osc.type='square';
+                osc.frequency.setValueAtTime(1500, t); osc.frequency.exponentialRampToValueAtTime(3000, t+0.1);
+                osc.connect(g);
+                g.gain.setValueAtTime(0.3, t); g.gain.exponentialRampToValueAtTime(0.01, t+0.1);
+                osc.start();
+            }
+        }
+    };
+    const Haptic = { pulse: (p) => { if(navigator.vibrate) navigator.vibrate(p); } };
+
+    // --- GAME ENGINE ---
+    const cvs = document.getElementById('game');
+    const ctx = cvs.getContext('2d', {alpha: false});
+    const W = 320, H = 224; 
+    cvs.width = W; cvs.height = H;
+    const FLOOR = 185;
+
+    // --- CONFIGURATION ---
+    const C = {
+        grav: 0.6, spd: 1.2, rollMaxSpd: 7.0, 
+        lit: { cost: 25, wind: 8, act: 4, rec: 12, dmg: 8, w: 50, push: 5 },
+        hvy: { cost: 55, wind: 25, act: 6, rec: 30, dmg: 22, w: 70, push: 10 }, 
+        roll: { cost: 35, dur: 28, invulStart: 2, invulEnd: 20 },
+        blk: { costFrame: 0.2, parryWindow: 8 },
+        st: { regen: 0.7, delay: 60 } 
+    };
+
+    // --- OPPONENTS ---
+    const LEVELS = [
+        { name: "NINJA", hp: 100, c: '#dcb', mask: '#444', type: 'ninja', spd:1, w:1 },
+        { name: "MUTANT", hp: 150, c: '#484', mask: '#222', type: 'mutant', spd:0.7, w:1.3 },
+        { name: "PHANTOM", hp: 80, c: '#8ff', mask: '#fff', type: 'ghost', spd:1.4, w:0.9, alpha:0.6 }
+    ];
+
+    // --- STATE ---
+    let state = 'MENU';
+    let levelIndex = 0;
+    let totalScore = 0;
+    let p1, p2;
+    let ragdolls = [], particles = [];
+    let slowMo = 0;
+    const keys = { l:0, r:0, lit:0, hvy:0, blk:0 };
+
+    // --- PHYSICS CLASSES ---
+    class Ragdoll {
+        constructor(x, y, dir, f, c) {
+            this.c = c;
+            this.pts = [
+                {x:x,y:y-40,ox:x-f*1.2,oy:y-40-f}, {x:x,y:y-10,ox:x-f,oy:y-10},
+                {x:x-5,y:y+30,ox:x-5,oy:y+30}, {x:x+5,y:y+30,ox:x+5,oy:y+30}, {x:x,y:y-30,ox:x-f*0.5,oy:y-30}
+            ];
+            this.ln = [[0,1,28],[1,2,38],[1,3,38],[0,4,24]];
+        }
+        update() {
+            this.pts.forEach(p=>{
+                let vx=(p.x-p.ox)*0.95, vy=(p.y-p.oy)*0.95;
+                p.ox=p.x; p.oy=p.y; p.x+=vx; p.y+=vy+C.grav;
+                if(p.y>FLOOR) { p.y=FLOOR; p.ox=p.x-(p.x-p.ox)*0.5; }
+            });
+            for(let k=0;k<3;k++) this.ln.forEach(l=>{
+                let a=this.pts[l[0]], b=this.pts[l[1]], d=l[2];
+                let dx=a.x-b.x, dy=a.y-b.y, dist=Math.sqrt(dx*dx+dy*dy), df=(dist-d)/dist/2;
+                a.x-=dx*df; a.y-=dy*df; b.x+=dx*df; b.y+=dy*df;
+            });
+        }
+        draw(ctx) {
+            ctx.strokeStyle = this.c; ctx.lineWidth = 8; ctx.beginPath();
+            this.ln.forEach(l=>{ ctx.moveTo(this.pts[l[0]].x, this.pts[l[0]].y); ctx.lineTo(this.pts[l[1]].x, this.pts[l[1]].y); });
+            ctx.stroke();
+            ctx.fillStyle = this.c; ctx.fillRect(this.pts[0].x-4, this.pts[0].y-4, 8, 8);
+        }
+    }
+
+    class Fighter {
+        constructor(isP1, cfg) {
+            this.isP1 = isP1;
+            if (isP1) {
+                this.c='#4d4'; this.mask='#f00'; this.maxHp=100; this.spdMod=1; this.wScale=1; this.alpha=1; this.type='hero';
+            } else {
+                this.c=cfg.c; this.mask=cfg.mask; this.maxHp=cfg.hp; this.spdMod=cfg.spd; this.wScale=cfg.w; this.type=cfg.type; this.alpha=cfg.alpha||1;
+            }
+            this.reset();
+        }
+        reset() {
+            this.x = this.isP1?70:W-70; this.y = FLOOR;
+            this.hp = this.maxHp; this.st=100; this.dir=this.isP1?1:-1;
+            this.stt='idle'; this.t=0; this.stDelay=0; this.tired=false;
+            this.dead=false; this.hitbox={on:false, x:0, y:0, w:0};
+        }
+        update(inp) {
+            if(this.dead) return;
+            if(state !== 'GAME') inp = {l:0,r:0,lit:0,hvy:0,blk:0};
+
+            // Stamina
+            if(this.stDelay>0) this.stDelay--;
+            if(this.st<=0 && !this.tired) { this.tired=true; this.stDelay=90; }
+            if(this.tired && this.st>=100) this.tired=false;
+            if(this.stDelay<=0 && this.st<100 && ['idle','walk'].includes(this.stt)) this.st+=C.st.regen;
+
+            switch(this.stt) {
+                case 'idle':
+                case 'walk':
+                    let s = (this.tired ? C.spd*0.5 : C.spd) * this.spdMod;
+                    if(inp.l) { this.x-=s; this.dir=-1; this.stt='walk'; }
+                    else if(inp.r) { this.x+=s; this.dir=1; this.stt='walk'; }
+                    else this.stt='idle';
+
+                    if(this.tired) break;
+
+                    if(inp.blk) {
+                        if((this.stt==='walk'||inp.l||inp.r) && this.st>=C.roll.cost) {
+                            this.act('roll', C.roll.cost); Haptic.pulse(10);
+                        } else if (this.st>0) { this.stt='block'; this.t=0; }
+                    }
+                    else if(inp.lit && this.st>=C.lit.cost) this.act('lit', C.lit.cost);
+                    else if(inp.hvy && this.st>=C.hvy.cost) this.act('hvy', C.hvy.cost);
+                    break;
+
+                case 'roll':
+                    this.t++;
+                    let p = this.t/C.roll.dur;
+                    this.x += this.dir * (C.rollMaxSpd * this.spdMod * (1 - p*p));
+                    if(this.t>C.roll.dur) this.stt='idle';
+                    break;
+
+                case 'block':
+                    this.st-=C.blk.costFrame; this.stDelay=30; this.t++;
+                    if(!inp.blk || this.st<=0) this.stt='idle';
+                    break;
+
+                case 'lit': this.anim(C.lit); break;
+                case 'hvy': this.anim(C.hvy); break;
+                case 'stun': case 'hit': this.hitbox.on=false; this.t--; if(this.t<=0) this.stt='idle'; break;
+            }
+            if(this.x<15) this.x=15; if(this.x>W-15) this.x=W-15;
+        }
+        act(st, cost) { this.stt=st; this.st-=cost; this.stDelay=C.st.delay; this.t=0; this.hitbox.on=false; }
+        anim(d) {
+            this.t++;
+            if(this.t<=d.wind) {}
+            else if(this.t<=d.wind+d.act) { this.hitbox.on=true; this.hitbox.w=d.w*this.wScale; }
+            else if(this.t<=d.wind+d.act+d.rec) { this.hitbox.on=false; }
+            else this.stt='idle';
+        }
+        hit(dmg, type, dir, push) {
+            if(this.stt==='roll' && this.t>=C.roll.invulStart && this.t<=C.roll.invulEnd) return;
+            if(this.stt==='block') {
+                if(this.t<=C.blk.parryWindow) { AudioEngine.play('parry'); Haptic.pulse(30); return 'PARRY'; }
+                if(this.st>=dmg) { this.st-=dmg; this.stDelay=60; this.x+=dir*push*2; return 'BLK'; }
+                else { this.st=0; this.tired=true; }
+            }
+            // Mutant Poise
+            if(this.type==='mutant' && type==='lit' && Math.random()<0.5) { 
+                this.hp-=dmg; this.x+=dir*push*0.5; AudioEngine.play('hit'); return; 
+            }
+
+            this.hp-=dmg; this.stDelay=60;
+            for(let i=0;i<5;i++) particles.push({x:this.x,y:this.y-30,vx:dir*Math.random()*6,vy:-Math.random()*5,life:30});
+            
+            if(this.hp<=0) {
+                this.dead=true; ragdolls.push(new Ragdoll(this.x,this.y,this.dir,10*dir,this.c));
+                slowMo=50; Haptic.pulse(50); AudioEngine.play('hvy');
+                return 'DIE';
+            }
+            this.stt=type==='hvy'?'stun':'hit'; this.t=type==='hvy'?40:20;
+            this.x+=dir*push; this.hitbox.on=false; AudioEngine.play('hit'); Haptic.pulse(20);
+            return 'HIT';
+        }
+        draw(ctx) {
+            if(this.dead) return;
+            ctx.globalAlpha = this.alpha;
+            let cx=Math.round(this.x), cy=Math.round(this.y), d=this.dir, t=this.t;
+            let bob = (this.stt==='idle'||this.stt==='walk') ? Math.floor(Date.now()/200)%2 : 0;
+            
+            // Legs
+            let l1=0, l2=0;
+            if(this.stt==='walk') { let w=Math.floor(Date.now()/100)%4; if(w===1){l1=-8;l2=4;} if(w===3){l1=4;l2=-8;} }
+            if(this.stt==='lit'||this.stt==='hvy') { l1=-10; l2=10; }
+            
+            ctx.fillStyle = this.isP1?'#3a3':(this.type==='mutant'?'#242':'#334');
+            ctx.fillRect(cx+(l1*d)-(3*this.wScale), cy-20, 6*this.wScale, 20);
+            ctx.fillRect(cx+(l2*d)-(3*this.wScale), cy-20, 6*this.wScale, 20);
+
+            // Body
+            let by = cy-44+bob;
+            ctx.fillStyle = this.c; if(this.isP1) ctx.fillStyle='#6d6';
+            ctx.fillRect(cx-9*this.wScale, by, 18*this.wScale, 24);
+            ctx.fillStyle = this.isP1?'#532':(this.type==='mutant'?'#000':'#556');
+            if(this.isP1) ctx.fillRect(cx-10*d, by+2, 14, 20); else ctx.fillRect(cx-9*this.wScale, by, 18*this.wScale, 12);
+
+            // Head
+            let hy = by-14;
+            ctx.fillStyle = this.c; ctx.fillRect(cx-7, hy, 14, 14);
+            ctx.fillStyle = this.mask; ctx.fillRect(cx-7, hy+4, 14, 4);
+            if(this.isP1) ctx.fillRect(cx-12*d, hy+4, 6, 2);
+
+            // Arms
+            let ax=cx+5*d, ay=by+4;
+            if(this.stt==='lit') { if(t<C.lit.wind) ax-=10*d; else if(t<C.lit.wind+C.lit.act) { ax+=25*d; ay+=5; } else ax+=15*d; }
+            if(this.stt==='hvy') { if(t<C.hvy.wind) { ax-=15*d; ay-=10; } else if(t<C.hvy.wind+C.hvy.act) { ax+=30*d; ay+=15; } }
+            if(this.stt==='block') { ax+=10*d; ay-=5; }
+            ctx.fillStyle=this.c; ctx.fillRect(ax-3, ay, 6, 14);
+
+            // Weapon
+            let hx=ax+2*d, hy2=ay+12;
+            if(this.isP1 || this.type==='ghost') { // Sword
+                ctx.fillStyle='#444'; ctx.fillRect(hx-2, hy2-4, 4, 8);
+                ctx.fillStyle='#eee';
+                if(this.stt==='hvy' && this.hitbox.on) {
+                    ctx.beginPath(); ctx.moveTo(hx,hy2); ctx.lineTo(hx+40*d, hy2+20); ctx.lineTo(hx+45*d, hy2+5); ctx.fill();
+                } else {
+                    let tx=hx+18*d, ty=hy2-18;
+                    if(this.stt==='lit') { tx=hx+35*d; ty=hy2; }
+                    if(this.stt==='block') { tx=hx+5*d; ty=hy2-25; }
+                    let steps=6; for(let i=0;i<steps;i++) { ctx.fillRect(hx+(tx-hx)*(i/steps), hy2+(ty-hy2)*(i/steps), 3, 3); }
+                }
+            } else { // Club
+                ctx.fillStyle='#889';
+                let tx=hx+25*d, ty=hy2-20;
+                if(this.stt==='hvy' && this.hitbox.on) { tx=hx+35*d; ty=hy2+30; }
+                let steps=8; for(let i=0;i<steps;i++) { ctx.fillRect(hx+(tx-hx)*(i/steps), hy2+(ty-hy2)*(i/steps), 5*this.wScale, 5*this.wScale); }
+            }
+            if(this.stt==='block') { ctx.strokeStyle='#aaf'; ctx.lineWidth=2; ctx.strokeRect(cx+10*d-5, cy-35, 10, 30); }
+            ctx.globalAlpha = 1.0;
+        }
+    }
+
+    // --- MAIN LOOP ---
+    function drawEnv() {
+        let g=ctx.createLinearGradient(0,0,0,H/2); g.addColorStop(0,'#204'); g.addColorStop(1,'#000');
+        ctx.fillStyle=g; ctx.fillRect(0,0,W,H);
+        ctx.fillStyle='#111'; ctx.fillRect(0,FLOOR-20,W,20);
+        ctx.fillStyle='#303'; for(let i=0;i<W;i+=40) ctx.fillRect(i,FLOOR-20,4,20);
+        ctx.fillStyle='#222'; ctx.fillRect(0,FLOOR,W,H-FLOOR);
+    }
+
+    function loop() {
+        if(slowMo>0) { slowMo--; if(slowMo%3!==0) { requestAnimationFrame(loop); return; } }
+        drawEnv();
+        
+        ragdolls.forEach(r => { r.update(); r.draw(ctx); });
+        
+        ctx.fillStyle='#e22';
+        for(let i=particles.length-1; i>=0; i--) {
+            let p=particles[i]; p.x+=p.vx; p.y+=p.vy; p.vy+=0.5; p.life--;
+            ctx.fillRect(p.x, p.y, 2, 2); if(p.y>FLOOR) p.vy*=-0.5;
+            if(p.life<=0) particles.splice(i,1);
+        }
+
+        if(p1 && state === 'GAME') {
+            p1.update(keys);
+            p2.update(aiLogic());
+
+            if(!p1.dead && !p2.dead) {
+                [p1,p2].forEach(atk => {
+                    if(atk.hitbox.on) {
+                        let def = atk.isP1 ? p2 : p1;
+                        let ax = atk.x + (atk.dir===1 ? 20 : -(20+atk.hitbox.w));
+                        let bx = def.x - 15;
+                        if(ax < bx + 30 && ax + atk.hitbox.w > bx) {
+                            atk.hitbox.on=false;
+                            let type = atk.stt==='hvy'?'hvy':'lit';
+                            let data = type==='hvy'?C.hvy:C.lit;
+                            let res = def.hit(data.dmg, type, atk.dir, data.push);
+                            
+                            if(res==='PARRY') { showMsg("PARRY!"); atk.stt='stun'; atk.t=60; atk.st=0; atk.tired=true; }
+                            if(res==='DIE') {
+                                if(atk.isP1) {
+                                    totalScore += 1000 + p1.hp*10;
+                                    showMsg("VICTORY");
+                                    setTimeout(nextLevel, 3000);
+                                } else {
+                                    showMsg("DEFEAT");
+                                    setTimeout(() => endGame(false), 3000);
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+            p1.draw(ctx); p2.draw(ctx);
+            document.getElementById('hp1').style.width = (p1.hp/100)*100+'%';
+            document.getElementById('st1').style.width = p1.st+'%';
+            document.getElementById('hp2').style.width = (p2.hp/p2.maxHp)*100+'%';
+            document.getElementById('st2').style.width = p2.st+'%';
+            document.getElementById('score').innerText = totalScore;
+        }
+        requestAnimationFrame(loop);
+    }
+
+    let aiT=0;
+    function aiLogic() {
+        if(!p1 || p2.dead) return {l:0,r:0,blk:0,lit:0,hvy:0};
+        let i={l:0,r:0,blk:0,lit:0,hvy:0};
+        let dist = Math.abs(p1.x - p2.x);
+        p2.dir = p1.x > p2.x ? 1 : -1;
+        if(aiT>0) { aiT--; return i; }
+        
+        let aggro = p2.type==='mutant' ? 0.05 : 0.03;
+        if(dist > 60) {
+            if(p1.x > p2.x) i.r=1; else i.l=1;
+        } else {
+            if(p1.stt==='hvy' && p1.t<15) { 
+                if(p2.type==='ghost') { i.l=(p2.dir===1); i.r=(p2.dir===-1); aiT=20; }
+                else { i.blk=1; aiT=30; }
+            }
+            else if(Math.random()<aggro) {
+                if(Math.random()>0.6) i.hvy=1; else i.lit=1; aiT=30;
+            }
+        }
+        return i;
+    }
+
+    function showMsg(t) { 
+        let e=document.getElementById('msg-txt'); e.innerText=t;
+        document.getElementById('center-msg').style.display='block';
+        setTimeout(()=>document.getElementById('center-msg').style.display='none', 2000);
+    }
+
+    // --- FLOW CONTROL ---
+    window.startArcade = function() {
+        AudioEngine.init();
+        levelIndex = 0; totalScore = 0;
+        document.getElementById('menu').style.display='none';
+        showLadder();
+    }
+
+    function showLadder() {
+        state = 'LADDER';
+        let scr = document.getElementById('ladder');
+        scr.style.display='flex';
+        // Highlight current
+        for(let i=1;i<=3;i++) {
+            let el = document.getElementById('lad-'+i);
+            el.className = 'ladder-item';
+            if(i < levelIndex+1) el.classList.add('ladder-done');
+            if(i === levelIndex+1) el.classList.add('ladder-active');
+        }
+        setTimeout(() => {
+            scr.style.display='none';
+            initMatch();
+        }, 2500);
+    }
+
+    function initMatch() {
+        ragdolls=[]; particles=[]; state='GAME';
+        let cfg = LEVELS[levelIndex];
+        document.getElementById('enemy-name').innerText = cfg.name;
+        p1 = new Fighter(true);
+        p2 = new Fighter(false, cfg);
+        showMsg("ROUND " + (levelIndex+1));
+    }
+
+    function nextLevel() {
+        levelIndex++;
+        if(levelIndex >= LEVELS.length) endGame(true);
+        else showLadder();
+    }
+
+    function endGame(win) {
+        state = 'END';
+        saveScore(totalScore);
+        showMsg(win ? "CHAMPION!" : "GAME OVER");
+        setTimeout(() => {
+            document.getElementById('menu').style.display='flex';
+            loadScores();
+        }, 3000);
+    }
+
+    function loadScores() {
+        let s = JSON.parse(localStorage.getItem('mutant_scores')) || [];
+        document.getElementById('scores').innerText = "TOP: " + s.slice(0,3).join(", ");
+    }
+    function saveScore(s) {
+        let sc = JSON.parse(localStorage.getItem('mutant_scores')) || [];
+        sc.push(s); sc.sort((a,b)=>b-a);
+        localStorage.setItem('mutant_scores', JSON.stringify(sc));
+    }
+    loadScores();
+
+    // --- INPUT ---
+    const dpad=document.getElementById('dpad');
+    const onTouch = (e, k, v) => { e.preventDefault(); if(k) keys[k]=v; };
+    const getDir = (e) => {
+        let r=dpad.getBoundingClientRect(), x=e.touches[0].clientX-r.left;
+        keys.l=x<r.width*0.4?1:0; keys.r=x>r.width*0.6?1:0;
+    };
+    
+    // Mouse Support for PC
+    dpad.addEventListener('mousedown', e=>{e.preventDefault();getDir({touches:[e]})});
+    window.addEventListener('mousemove', e=>{if(e.buttons===1) getDir({touches:[e]})});
+    window.addEventListener('mouseup', e=>{keys.l=0;keys.r=0;});
+
+    // Touch Support
+    dpad.addEventListener('touchstart', e=>{e.preventDefault();getDir(e)}, {passive:false});
+    dpad.addEventListener('touchmove', e=>{e.preventDefault();getDir(e)}, {passive:false});
+    dpad.addEventListener('touchend', e=>{e.preventDefault();keys.l=0;keys.r=0;}, {passive:false});
+
+    document.querySelectorAll('.ctrl-btn').forEach(b => {
+        let k=b.dataset.k;
+        // Touch
+        b.addEventListener('touchstart', e=>onTouch(e,k,1), {passive:false});
+        b.addEventListener('touchend', e=>onTouch(e,k,0), {passive:false});
+        // Mouse
+        b.addEventListener('mousedown', e=>{e.preventDefault();keys[k]=1;b.style.transform='translateY(5px)'});
+        b.addEventListener('mouseup', e=>{e.preventDefault();keys[k]=0;b.style.transform='translateY(0)'});
+    });
+
+    loop();
+</script>
+</body>
+</html>
+
