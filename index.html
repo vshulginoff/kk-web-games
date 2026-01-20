@@ -21,13 +21,13 @@
         body {
             background-color: var(--bg-color);
             color: var(--text-color);
-            font-family: 'Courier New', Courier, monospace; /* Техно-стиль */
+            font-family: 'Courier New', Courier, monospace;
             display: flex;
             flex-direction: column;
             min-height: 100vh;
         }
 
-        /* --- Эффект "Скоростных линий" (как на лого) --- */
+        /* --- Эффект "Скоростных линий" --- */
         .speed-lines {
             background-image: repeating-linear-gradient(
                 to bottom,
@@ -65,13 +65,12 @@
             font-weight: 900;
             text-transform: uppercase;
             letter-spacing: -1px;
-            font-family: Arial, sans-serif; /* Более массивный шрифт для лого */
+            font-family: Arial, sans-serif;
         }
 
         .logo-lines {
             height: 30px;
             width: 100px;
-            /* Вставляем полоски */
             background-image: repeating-linear-gradient(
                 to bottom,
                 #000 0px,
@@ -143,12 +142,12 @@
             width: 100%;
             height: 100%;
             object-fit: cover;
-            filter: grayscale(100%); /* ЧБ фильтр для картинок */
+            filter: grayscale(100%);
             transition: 0.3s;
         }
 
         .card:hover .card-image img {
-            filter: grayscale(0%); /* Цвет при наведении */
+            filter: grayscale(0%);
         }
 
         .card-info {
@@ -267,62 +266,63 @@
         </main>
 
     <footer>
-        <div>© 2024 KafeKrematory. Творческое объединение.</div>
+        <div>© 2026 KafeKrematory. Творческое объединение.</div>
         <div class="decoration-line"></div>
     </footer>
 
     <script>
-        // --- 1. Данные об играх ---
-        // Чтобы добавить игру, просто добавь новый объект в этот массив.
+        // --- 1. СПИСОК ИГР ---
         const games = [
             {
                 id: 1,
-                title: "LiminalGothic",
-                genre: "Arcade",
-                version: "v0.1",
-                image: "https://placehold.co/600x400/000000/FFF?text=RUNNER", // Замени на путь к картинке
-                link: "https://vshulginoff.github.io/kk-web-games/LiminalGothic"
+                title: "Liminal Gothic", 
+                genre: "Horror / Maze",
+                version: "v1.0",
+                // Заглушка картинки
+                image: "https://placehold.co/600x400/000000/FFF?text=LIMINAL+GOTHIC", 
+                // ВАЖНО: Правильный путь к твоей папке
+                link: "LiminalGothic/index.html" 
             },
             {
                 id: 2,
-                title: "BrutalCars",
-                genre: "Racing",
+                title: "Cyber Skull Runner",
+                genre: "Platformer",
+                version: "v0.9",
+                image: "https://placehold.co/600x400/000000/FFF?text=RUNNER",
+                link: "#" // Заменишь, когда загрузишь вторую игру
+            },
+            {
+                id: 3,
+                title: "Neuro-Glitch",
+                genre: "Puzzle",
                 version: "v1.2",
                 image: "https://placehold.co/600x400/000000/FFF?text=GLITCH",
                 link: "#"
             },
             {
-                id: 3,
-                title: "Bio-Crysis",
-                genre: "Rpg",
+                id: 4,
+                title: "Void Drifter",
+                genre: "Racing",
                 version: "v0.5 alpha",
                 image: "https://placehold.co/600x400/000000/FFF?text=DRIFTER",
                 link: "#"
             },
             {
-                id: 4,
-                title: "застрявший в тц",
-                genre: "Dungeon crawler",
+                id: 5,
+                title: "Bone Breaker Z",
+                genre: "Action",
                 version: "Release",
                 image: "https://placehold.co/600x400/000000/FFF?text=BONE+Z",
-                link: "#"
-            },
-            {
-                id: 5,
-                title: "BrutalSouls",
-                genre: "Fighting",
-                version: "v2.0",
-                image: "https://placehold.co/600x400/000000/FFF?text=HACK",
                 link: "#"
             }
         ];
 
-        // --- 2. Логика рендеринга ---
+        // --- 2. ЛОГИКА ---
         const container = document.getElementById('game-container');
         const searchInput = document.getElementById('search-input');
 
         function renderGames(filterText = '') {
-            container.innerHTML = ''; // Очистка
+            container.innerHTML = ''; 
 
             const filteredGames = games.filter(game => 
                 game.title.toLowerCase().includes(filterText.toLowerCase())
@@ -336,10 +336,11 @@
             filteredGames.forEach(game => {
                 const card = document.createElement('div');
                 card.className = 'card';
+                
+                // Клик по всей карточке
                 card.onclick = () => {
-                    // Здесь логика запуска. Пока просто алерт.
-                    alert(`Инициализация запуска: ${game.title}...`);
-                    // window.location.href = game.link; // Раскомментируй для реального перехода
+                    // Переход по ссылке
+                    window.location.href = game.link; 
                 };
 
                 card.innerHTML = `
@@ -361,9 +362,10 @@
             });
         }
 
-        // --- 3. Инициализация и поиск ---
-        renderGames(); // Первый рендер
+        // Запуск при загрузке
+        renderGames(); 
 
+        // Поиск
         searchInput.addEventListener('input', (e) => {
             renderGames(e.target.value);
         });
