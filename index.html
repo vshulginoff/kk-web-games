@@ -254,7 +254,7 @@
         </div>
         
         <nav style="z-index: 2; font-weight: bold;">
-            [v.1.0_BETA]
+            [v.2.0_LIVE]
         </nav>
     </header>
 
@@ -271,49 +271,61 @@
     </footer>
 
     <script>
-        // --- 1. СПИСОК ИГР ---
+        // --- 1. СПИСОК ИГР (Обновлен под твои папки) ---
         const games = [
             {
                 id: 1,
-                title: "Liminal Gothic", 
-                genre: "Horror / Maze",
+                title: "Bio Crysis",
+                genre: "Biological RPG",
                 version: "v1.0",
-                // Заглушка картинки
-                image: "https://placehold.co/600x400/000000/FFF?text=LIMINAL+GOTHIC", 
-                // ВАЖНО: Правильный путь к твоей папке
-                link: "LiminalGothic/index.html" 
+                image: "https://placehold.co/600x400/000000/FFF?text=BIO+CRYSIS",
+                // Стандартный файл запуска
+                link: "BioCrysis/biocrysis.html" 
             },
             {
                 id: 2,
-                title: "Cyber Skull Runner",
-                genre: "Platformer",
-                version: "v0.9",
-                image: "https://placehold.co/600x400/000000/FFF?text=RUNNER",
-                link: "#" // Заменишь, когда загрузишь вторую игру
+                title: "Brutal Race",
+                genre: "Racing / Combat",
+                version: "Alpha",
+                image: "https://placehold.co/600x400/000000/FFF?text=BRUTAL+RACE",
+                // Судя по коммиту: Create brgame.html
+                link: "BrutalRace/brgame.html"
             },
             {
                 id: 3,
-                title: "Neuro-Glitch",
-                genre: "Puzzle",
-                version: "v1.2",
-                image: "https://placehold.co/600x400/000000/FFF?text=GLITCH",
-                link: "#"
+                title: "Brutal Souls",
+                genre: "Hardcore Action",
+                version: "Prototype",
+                image: "https://placehold.co/600x400/000000/FFF?text=BRUTAL+SOULS",
+                // Судя по коммиту: Create bsgame.html
+                link: "BrutalSouls/bsgame.html"
             },
             {
                 id: 4,
-                title: "Void Drifter",
-                genre: "Racing",
-                version: "v0.5 alpha",
-                image: "https://placehold.co/600x400/000000/FFF?text=DRIFTER",
-                link: "#"
+                title: "Card Deck WoW",
+                genre: "Card Strategy",
+                version: "Demo",
+                image: "https://placehold.co/600x400/000000/FFF?text=CARD+DECK",
+                // Судя по коммиту: Create card.html
+                link: "CardDeckWoW/card.html"
             },
             {
                 id: 5,
-                title: "Bone Breaker Z",
-                genre: "Action",
+                title: "Liminal Gothic",
+                genre: "Horror / Maze",
                 version: "Release",
-                image: "https://placehold.co/600x400/000000/FFF?text=BONE+Z",
-                link: "#"
+                image: "https://placehold.co/600x400/000000/FFF?text=LIMINAL+GOTHIC",
+                // Уже проверено
+                link: "LiminalGothic/index.html"
+            },
+            {
+                id: 6,
+                title: "NTC Game",
+                genre: "Experimental",
+                version: "Build 001",
+                image: "https://placehold.co/600x400/000000/FFF?text=NTC+GAME",
+                // Стандартный файл запуска
+                link: "NTCgame/ntcgame.html"
             }
         ];
 
