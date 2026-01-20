@@ -1,507 +1,533 @@
 <!DOCTYPE html>
-<html lang="ru">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Mud & Drift Racing</title>
+    <title>Rally Legends: Top Down</title>
     <script src="https://yandex.ru/games/sdk/v2"></script>
     <style>
-        :root { --primary: #e67e22; --danger: #c0392b; --mud: #5d4037; --oil: #111; --bg: #222; }
+        /* COLIN MCRAE STYLE UI */
+        @import url('https://fonts.googleapis.com/css2?family=Exo+2:wght@400;700;900&display=swap');
+
+        :root { --rally-blue: #0055aa; --rally-yellow: #ffcc00; --bg: #3e3832; }
+        
         * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
         body {
-            margin: 0; padding: 0; overflow: hidden; background: var(--bg);
-            font-family: monospace; color: white;
-            user-select: none; -webkit-user-select: none;
-            touch-action: none; position: fixed; width: 100%; height: 100%;
+            margin: 0; padding: 0; overflow: hidden; background: #111;
+            font-family: 'Exo 2', sans-serif; color: white;
+            user-select: none; touch-action: none; position: fixed; width: 100%; height: 100%;
         }
         canvas { display: block; width: 100%; height: 100%; }
 
+        /* UI OVERLAY */
+        .ui-layer {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none; display: flex; flex-direction: column; justify-content: space-between;
+        }
+
+        /* MENU SCREEN */
         .screen {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            display: flex; flex-direction: column;
-            align-items: center; justify-content: center;
-            background: rgba(0,0,0,0.95); z-index: 100;
+            background: rgba(0, 85, 170, 0.95); /* Rally Blue */
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            z-index: 100; transition: opacity 0.3s; pointer-events: auto;
         }
-        .hidden { display: none !important; }
+        .hidden { opacity: 0; pointer-events: none; z-index: -1; }
 
-        h1 { font-size: 40px; color: var(--primary); text-transform: uppercase; text-shadow: 4px 4px 0 #000; margin-bottom: 10px;}
-        p { color: #ccc; text-align: center; margin-bottom: 20px; font-size: 16px; line-height: 1.5; }
+        h1 { 
+            font-size: 48px; font-weight: 900; font-style: italic; 
+            text-transform: uppercase; letter-spacing: 2px; margin: 0;
+            border-bottom: 4px solid var(--rally-yellow); padding-bottom: 10px;
+        }
+        p { font-size: 18px; color: #ddd; margin-bottom: 40px; }
 
         .btn {
-            padding: 20px 60px; font-size: 24px; font-weight: bold;
-            background: #333; border: 3px solid var(--primary); color: var(--primary);
-            cursor: pointer; text-transform: uppercase; box-shadow: 0 5px 0 #000;
+            background: transparent; border: 2px solid white; color: white;
+            padding: 15px 60px; font-size: 24px; font-weight: 700; text-transform: uppercase;
+            cursor: pointer; transition: all 0.2s; font-family: 'Exo 2', sans-serif;
         }
-        .btn:active { transform: translateY(4px); box-shadow: none; background: var(--primary); color: #000; }
+        .btn:active { background: white; color: var(--rally-blue); transform: scale(0.95); }
 
         /* HUD */
-        #hud-top { position: absolute; top: 15px; left: 15px; pointer-events: none; z-index: 10; font-size: 20px; font-weight: bold; text-shadow: 2px 2px 0 #000; }
-        #bar-hp { width: 200px; height: 20px; background: #333; border: 2px solid #fff; transform: skewX(-20deg); margin-bottom: 5px; }
-        #fill-hp { width: 100%; height: 100%; background: var(--danger); transition: width 0.2s; }
-        #bar-ammo { width: 200px; height: 10px; background: #333; border: 1px solid #fff; transform: skewX(-20deg); }
-        #fill-ammo { width: 100%; height: 100%; background: #f1c40f; }
+        #hud-top { 
+            padding: 20px; display: flex; justify-content: space-between; 
+            font-weight: 900; font-size: 24px; text-shadow: 2px 2px 0 #000;
+        }
+        .timer-box { color: var(--rally-yellow); font-family: monospace; font-size: 32px; }
+        .gear-indicator { 
+            width: 50px; height: 50px; border: 2px solid white; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center; font-size: 28px;
+        }
 
         /* CONTROLS */
-        .controls { position: absolute; bottom: 30px; width: 100%; height: 120px; display: flex; justify-content: space-between; padding: 0 20px; box-sizing: border-box; pointer-events: none; z-index: 20; }
-        .group { display: flex; gap: 15px; pointer-events: auto; align-items: flex-end; }
-        
-        .c-btn { width: 80px; height: 80px; background: rgba(50,50,50,0.8); border: 3px solid #777; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 30px; color: #fff; box-shadow: 0 4px 0 #000; }
-        .c-btn:active { background: #fff; color: #000; transform: translateY(4px); box-shadow: none; }
+        .controls { 
+            display: flex; justify-content: space-between; padding: 20px; 
+            pointer-events: none; margin-bottom: 20px;
+        }
+        .c-group { display: flex; gap: 20px; pointer-events: auto; align-items: flex-end; }
+        .c-btn {
+            width: 80px; height: 80px; background: rgba(255,255,255,0.1);
+            border: 2px solid rgba(255,255,255,0.5); border-radius: 10px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 30px; color: white; backdrop-filter: blur(5px);
+        }
+        .c-btn:active { background: rgba(255,255,255,0.3); border-color: var(--rally-yellow); }
     </style>
 </head>
 <body>
 
 <div id="start-screen" class="screen">
-    <h1>DIRT RALLY</h1>
-    <p>Коричневые пятна = ГРЯЗЬ (Вязнешь)<br>Черные пятна = МАСЛО (Дрифт)<br>Тарань врагов!</p>
-    <button class="btn" onclick="startGame()">ГОНКА</button>
+    <h1>RALLY LEGENDS</h1>
+    <p>STAGE 1: FOREST GRAVEL</p>
+    <button class="btn" onclick="startGame()">START STAGE</button>
 </div>
 
 <div id="gameover-screen" class="screen hidden">
-    <h1 style="color:var(--danger)">FAIL</h1>
-    <p>Кругов: <span id="final-score">0</span></p>
-    <button class="btn" onclick="startGame()">ЕЩЕ РАЗ</button>
+    <h1 id="go-title">STAGE FINISH</h1>
+    <p>TIME: <span id="final-time">00:00.00</span></p>
+    <button class="btn" onclick="startGame()">RESTART</button>
 </div>
 
-<div id="hud-top">
-    <div id="bar-hp"><div id="fill-hp"></div></div>
-    <div id="bar-ammo"><div id="fill-ammo"></div></div>
-    <div style="margin-top:5px">SPEED: <span id="speed-val">0</span></div>
-</div>
-
-<div class="controls">
-    <div class="group">
-        <div id="b-left" class="c-btn">◄</div>
-        <div id="b-right" class="c-btn">►</div>
+<div class="ui-layer">
+    <div id="hud-top">
+        <div id="gear" class="gear-indicator">N</div>
+        <div id="timer" class="timer-box">00:00.00</div>
     </div>
-    <div class="group">
-        <div id="b-shoot" class="c-btn" style="border-color:#f1c40f; color:#f1c40f">🔥</div>
-        <div id="b-gas" class="c-btn" style="border-color:#e67e22; color:#e67e22">▲</div>
+
+    <div class="controls">
+        <div class="c-group">
+            <div id="b-left" class="c-btn">◄</div>
+            <div id="b-right" class="c-btn">►</div>
+        </div>
+        <div class="c-group">
+            <div id="b-brake" class="c-btn" style="border-color:#ff4444">B</div>
+            <div id="b-gas" class="c-btn" style="border-color:#44ff44">A</div>
+        </div>
     </div>
 </div>
 
 <canvas id="gameCanvas"></canvas>
 
 <script>
-    // --- PHYSICS SETTINGS ---
+    // --- 1. RALLY PHYSICS CONFIG ---
     const PHYS = {
-        maxSpeed: 24,       // Максималка (быстрая, но тяжелая)
-        accel: 0.15,        // Разгон медленный (ощущение веса)
-        friction: 0.98,     // Инерция (катится долго)
-        turn: 0.04,         // Тугой руль
-        grip: 0.92,         // Дрифт
-        
-        // Поверхности
-        mudSpeed: 0.6,      // Замедление в грязи
-        oilGrip: 0.2        // Скольжение на масле
+        maxSpeed: 22,        // Достаточно быстро для ралли
+        accel: 0.18,         // Мощный разгон (полный привод)
+        friction: 0.98,      // Гравий (машина катится)
+        turnSpeed: 0.055,    // Острый руль
+        grip: 0.91,          // Скользко! (0.9 - лед, 1.0 - асфальт)
+        driftDecay: 0.94     // Как быстро гасится боковое скольжение
     };
 
-    // --- SETUP ---
+    // --- 2. ENGINE SETUP ---
     const canvas = document.getElementById('gameCanvas');
     const ctx = canvas.getContext('2d', { alpha: false });
+    
     function resize() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
     window.addEventListener('resize', resize); resize();
 
     let gameState = 'MENU';
     let keys = {};
-    let player, enemies=[], particles=[], projectiles=[], patches=[];
-    let laps=0, nextCP=0;
-    const cam = {x:0, y:0, zoom:0.75};
+    let player;
+    let particles = [];
+    let trees = [];
+    let startTime = 0;
+    let finishTime = 0;
+    
+    // Камера
+    const cam = { x: 0, y: 0, zoom: 0.8 };
 
-    // Yandex
-    setTimeout(() => {
-        if(window.YaGames) YaGames.init().then(ys => ys.getLeaderboards().then(lb => window.lb = lb));
-    }, 500);
-
-    // Track Points
-    const points = [
-        {x:0, y:0}, {x:0, y:-4000}, {x:2500, y:-7000}, 
-        {x:5500, y:-7000}, {x:7000, y:-4000}, {x:5000, y:0}, 
-        {x:2000, y:2500}, {x:-2000, y:2500}, {x:-4000, y:0}
-    ];
-    points.forEach(p => { p.x+=3000; p.y+=6000; });
-
-    // --- CLASSES ---
-    class Patch {
-        constructor(x, y, type) {
-            this.x=x; this.y=y; this.type=type; // 'mud' or 'oil'
-            this.r = 150 + Math.random()*100;
-            // Генерируем "кляксу" из нескольких кругов
-            this.blobs = [];
-            for(let i=0; i<5; i++) {
-                this.blobs.push({
-                    dx: (Math.random()-0.5)*this.r, 
-                    dy: (Math.random()-0.5)*this.r, 
-                    r: this.r * (0.4 + Math.random()*0.4)
-                });
+    // Трасса (Спецучасток - незамкнутый, длинный)
+    // Генерируем извилистую дорогу
+    const trackWidth = 500;
+    const trackPoints = [];
+    
+    function generateTrack() {
+        trackPoints.length = 0;
+        let x = 0, y = 0;
+        let angle = -Math.PI / 2; // Вверх
+        
+        // Старт
+        for(let i=0; i<5; i++) { y-=400; trackPoints.push({x, y}); }
+        
+        // Процедурная генерация поворотов
+        for(let i=0; i<40; i++) {
+            // Случайный поворот
+            let curve = (Math.random() - 0.5) * 1.5; 
+            let length = 600 + Math.random() * 600;
+            
+            // Разбиваем поворот на сегменты для плавности
+            let segments = 5;
+            for(let j=0; j<segments; j++) {
+                angle += curve / segments;
+                x += Math.cos(angle) * (length/segments);
+                y += Math.sin(angle) * (length/segments);
+                trackPoints.push({x, y});
             }
         }
-        draw(ctx) {
-            ctx.save(); ctx.translate(this.x, this.y);
-            ctx.fillStyle = this.type === 'mud' ? '#5d4037' : '#111'; // Коричневый или Черный
-            ctx.beginPath();
-            this.blobs.forEach(b => {
-                ctx.moveTo(b.dx, b.dy);
-                ctx.arc(b.dx, b.dy, b.r, 0, Math.PI*2);
-            });
-            ctx.fill();
-            // Блики для масла
-            if(this.type === 'oil') {
-                ctx.fillStyle = 'rgba(255,255,255,0.1)';
-                ctx.beginPath(); ctx.arc(20, -20, 30, 0, Math.PI*2); ctx.fill();
+        
+        // Генерируем лес вокруг трассы
+        trees = [];
+        for(let i=0; i<trackPoints.length-1; i++) {
+            let p1 = trackPoints[i];
+            let p2 = trackPoints[i+1];
+            let dist = Math.hypot(p1.x-p2.x, p1.y-p2.y);
+            let steps = Math.floor(dist / 100);
+            
+            for(let s=0; s<steps; s++) {
+                let t = s/steps;
+                let cx = p1.x + (p2.x-p1.x)*t;
+                let cy = p1.y + (p2.y-p1.y)*t;
+                
+                // Слева и справа
+                if(Math.random()>0.3) trees.push({ x: cx - trackWidth/2 - 100 - Math.random()*300, y: cy + (Math.random()-0.5)*100, r: 40+Math.random()*30 });
+                if(Math.random()>0.3) trees.push({ x: cx + trackWidth/2 + 100 + Math.random()*300, y: cy + (Math.random()-0.5)*100, r: 40+Math.random()*30 });
             }
-            ctx.restore();
         }
     }
 
-    class Car {
-        constructor(x, y, isPlayer) {
-            this.x=x; this.y=y; this.isPlayer=isPlayer;
-            this.angle = -Math.PI/2;
-            this.speed = 0; 
-            this.driftVec = {x:0, y:0};
-            this.w=36; this.l=64; this.health=100;
-            this.ammo = isPlayer ? 15 : 0;
-            this.targetIdx=1; this.shootTimer=0;
+    // --- 3. CAR CLASS (RALLY SPEC) ---
+    class RallyCar {
+        constructor() {
+            this.x = trackPoints[0].x;
+            this.y = trackPoints[0].y + 200;
+            this.angle = -Math.PI / 2;
+            this.speed = 0;
             
-            if(isPlayer) { this.color='#95a5a6'; this.mass=2.0; } // Игрок тяжелый
-            else { this.color='#c0392b'; this.mass=1.0; }
+            // Векторы движения (для дрифта)
+            this.vx = 0;
+            this.vy = 0;
+            
+            this.w = 34;
+            this.l = 66;
+            this.finished = false;
         }
 
         update() {
-            // 1. Определение поверхности
-            let myGrip = PHYS.grip;
-            let myFriction = PHYS.friction;
-            let inMud = false;
-
-            for(let p of patches) {
-                // Упрощенная проверка дистанции до центра пятна
-                if((this.x-p.x)**2 + (this.y-p.y)**2 < (p.r*0.8)**2) {
-                    if(p.type === 'mud') {
-                        inMud = true;
-                        myFriction = 0.92; // Вязкость
-                    } else {
-                        myGrip = PHYS.oilGrip; // Скольжение
-                        myFriction = 0.995; // Летит как по льду
-                    }
-                }
+            if(this.finished) {
+                this.speed *= 0.95;
+                this.x += this.vx; this.y += this.vy;
+                return;
             }
 
-            if(this.isPlayer) {
-                // Стрельба
-                if(keys.shoot && this.shootTimer<=0 && this.ammo>0) {
-                    this.ammo--; this.shootTimer=15;
-                    projectiles.push({x:this.x, y:this.y, vx:Math.cos(this.angle)*40, vy:Math.sin(this.angle)*40, life:60});
-                    this.speed -= 1; 
-                    AudioEngine.play('shoot');
-                }
-                if(this.shootTimer>0) this.shootTimer--;
+            // Controls
+            if(keys.up) this.speed += PHYS.accel;
+            else if(keys.down) this.speed -= PHYS.accel * 1.5; // Тормоз
+            else this.speed *= PHYS.friction; // Инерция
 
-                // Газ/Тормоз
-                if(keys.up) {
-                    // В грязи разгон хуже
-                    this.speed += PHYS.accel * (inMud ? 0.4 : 1.0);
-                } else if(keys.down) {
-                    this.speed -= PHYS.accel * 1.5;
-                } else {
-                    this.speed *= myFriction; // Накат
-                }
+            if(this.speed > PHYS.maxSpeed) this.speed = PHYS.maxSpeed;
+            if(this.speed < -6) this.speed = -6;
 
-                // Лимиты
-                let maxS = PHYS.maxSpeed;
-                if(inMud) maxS *= 0.6; // В грязи макс скорость падает
-                if(this.speed > maxS) this.speed = maxS;
-                if(this.speed < -8) this.speed = -8;
-
-                // Поворот
-                if(Math.abs(this.speed) > 0.5) {
-                    const dir = this.speed > 0 ? 1 : -1;
-                    // На масле руль почти не работает
-                    let turnEff = (myGrip < 0.5) ? 0.3 : 1.0;
-                    if(keys.left) this.angle -= PHYS.turn * turnEff * dir;
-                    if(keys.right) this.angle += PHYS.turn * turnEff * dir;
-                }
-            } else {
-                // AI
-                let t = points[this.targetIdx];
-                if((this.x-t.x)**2+(this.y-t.y)**2 < 100000) this.targetIdx=(this.targetIdx+1)%points.length;
-                let wa = Math.atan2(t.y-this.y, t.x-this.x);
-                let diff = wa - this.angle;
-                while(diff<=-Math.PI) diff+=Math.PI*2; while(diff>Math.PI) diff-=Math.PI*2;
-                if(diff > 0.1) this.angle += 0.04; else if(diff < -0.1) this.angle -= 0.04;
+            // Steering
+            if(Math.abs(this.speed) > 0.5) {
+                let dir = this.speed > 0 ? 1 : -1;
+                // На высокой скорости руль "тяжелеет" (меньше угол)
+                let speedFactor = 1 - (Math.abs(this.speed) / PHYS.maxSpeed) * 0.3;
                 
-                let targetS = 18; 
-                if(inMud) targetS = 10;
-                // Rubber band
-                let d = Math.hypot(player.x-this.x, player.y-this.y);
-                if(d > 1000) targetS = 24; 
-                
-                if(this.speed < targetS) this.speed += 0.2; else this.speed *= 0.98;
+                if(keys.left) this.angle -= PHYS.turnSpeed * dir * speedFactor;
+                if(keys.right) this.angle += PHYS.turnSpeed * dir * speedFactor;
             }
 
-            // 2. Векторная физика (Инерция)
-            const hX = Math.cos(this.angle) * this.speed;
-            const hY = Math.sin(this.angle) * this.speed;
+            // PHYSICS: Drift Math
+            // 1. Куда смотрят колеса
+            let frontX = Math.cos(this.angle) * this.speed;
+            let frontY = Math.sin(this.angle) * this.speed;
 
-            // Смешиваем текущий вектор с инерцией
-            this.driftVec.x = this.driftVec.x * 0.93 + hX * 0.07;
-            this.driftVec.y = this.driftVec.y * 0.93 + hY * 0.07;
+            // 2. Куда мы летим по инерции (предыдущий вектор)
+            // Плавный переход от инерции к вектору колес
+            this.vx = this.vx * PHYS.driftDecay + frontX * (1 - PHYS.driftDecay);
+            this.vy = this.vy * PHYS.driftDecay + frontY * (1 - PHYS.driftDecay);
 
-            // Результирующий вектор (Grip решает, куда едем: за колесами или по инерции)
-            const mX = hX * myGrip + this.driftVec.x * (1 - myGrip);
-            const mY = hY * myGrip + this.driftVec.y * (1 - myGrip);
-
-            this.x += mX; 
-            this.y += mY;
-
-            // Визуал грязи/дыма
-            if((inMud || (myGrip < 0.5)) && Math.abs(this.speed) > 5) {
-                if(Math.random()>0.6) {
-                    let color = inMud ? '#5d4037' : '#aaa';
-                    particles.push({x:this.x, y:this.y, vx:0, vy:0, life:20, c:color, s:Math.random()*6+4});
-                }
-            }
-
-            // Трасса (Бордюры)
-            let mD = Infinity;
-            for(let i=0; i<points.length; i++) {
-                const p1=points[i], p2=points[(i+1)%points.length];
-                const d = distToSeg(this, p1, p2); if(d<mD) mD=d;
-            }
-            // Ширина трассы 700 (350 радиус)
-            if(mD > 380) {
-                // Мягкое отталкивание от стены, чтобы не залипать
-                this.speed *= 0.9;
-                if(this.isPlayer && Math.abs(this.speed) > 5) {
-                    this.health -= 0.1;
-                    // Тряска
-                    cam.x += (Math.random()-0.5)*10;
-                    cam.y += (Math.random()-0.5)*10;
-                }
-            }
+            // 3. Добавляем Grip (сцепление)
+            // Чем выше скорость и резче поворот, тем меньше сцепление
+            // Но мы упростим: просто смешиваем вектора
+            let finalX = frontX * PHYS.grip + this.vx * (1 - PHYS.grip);
+            let finalY = frontY * PHYS.grip + this.vy * (1 - PHYS.grip);
             
-            if(this.isPlayer) AudioEngine.update(this.speed);
+            // Обновляем позицию
+            this.x += finalX;
+            this.y += finalY;
+            
+            // Обновляем "инерционный вектор" для следующего кадра (хитрость для дрифта)
+            this.vx = finalX;
+            this.vy = finalY;
+
+            // DUST PARTICLES
+            // Если дрифтуем (разница между углом корпуса и вектором движения)
+            let moveAngle = Math.atan2(this.vy, this.vx);
+            let driftAngle = Math.abs(this.angle - moveAngle);
+            if(driftAngle > 3.14) driftAngle -= 3.14; // Коррекция круга
+
+            if((Math.abs(this.speed) > 8 && driftAngle > 0.2) || (keys.up && Math.abs(this.speed) < 10)) {
+                // Пыль из-под колес
+                for(let i=0; i<2; i++) {
+                    particles.push({
+                        x: this.x - Math.cos(this.angle)*25 + (Math.random()-0.5)*20,
+                        y: this.y - Math.sin(this.angle)*25 + (Math.random()-0.5)*20,
+                        vx: (Math.random()-0.5)*2,
+                        vy: (Math.random()-0.5)*2,
+                        life: 40 + Math.random()*20,
+                        size: 5 + Math.random()*10,
+                        c: `rgba(180, 160, 140, ${0.3 + Math.random()*0.3})` // Цвет пыли
+                    });
+                }
+            }
+
+            // COLLISION (Trees)
+            for(let t of trees) {
+                if((this.x-t.x)**2 + (this.y-t.y)**2 < (t.r + 15)**2) {
+                    // Удар о дерево
+                    this.speed *= -0.5;
+                    this.vx *= -0.5; this.vy *= -0.5;
+                    this.x += (this.x - t.x) * 0.1; // Отскок
+                    this.y += (this.y - t.y) * 0.1;
+                    AudioEngine.rev(0); // Звук сброса
+                }
+            }
+
+            // Check Finish
+            let endP = trackPoints[trackPoints.length-1];
+            if(Math.hypot(this.x-endP.x, this.y-endP.y) < 300 && !this.finished) {
+                this.finished = true;
+                finishGame();
+            }
+
+            AudioEngine.rev(Math.abs(this.speed));
         }
 
         draw(ctx) {
-            ctx.save(); ctx.translate(this.x, this.y); ctx.rotate(this.angle);
+            ctx.save();
+            ctx.translate(this.x, this.y);
+            ctx.rotate(this.angle);
+
+            // Классическая синяя раллийная машина (Subaru style)
             
             // Тень
-            ctx.fillStyle='rgba(0,0,0,0.5)'; ctx.fillRect(-18, -18, 36, 36);
-            
-            // Колеса
-            ctx.fillStyle='#111'; 
+            ctx.fillStyle = 'rgba(0,0,0,0.5)';
+            ctx.fillRect(-18, -18, 36, 36);
+
+            // Колеса (поворачиваются?)
+            ctx.fillStyle = '#222';
             ctx.fillRect(-18, -20, 10, 12); ctx.fillRect(-18, 8, 10, 12);
             ctx.fillRect(8, -20, 10, 12); ctx.fillRect(8, 8, 10, 12);
 
-            // Кузов
-            ctx.fillStyle = this.color;
-            ctx.fillRect(-14, -16, 28, 32);
-            
-            // Капот / Багажник
-            ctx.fillStyle = 'rgba(0,0,0,0.2)'; ctx.fillRect(-14, -16, 28, 10);
-            
-            // Стекло
-            ctx.fillStyle = '#111'; ctx.fillRect(-10, -4, 20, 10);
+            // Корпус (Синий)
+            ctx.fillStyle = '#0055aa';
+            // Используем path для аэродинамики
+            ctx.beginPath();
+            ctx.moveTo(18, -15); ctx.lineTo(18, 15); // Перед
+            ctx.lineTo(-18, 15); ctx.lineTo(-18, -15); // Зад
+            ctx.fill();
 
-            // Усиленный бампер (Таран)
-            ctx.fillStyle = '#555'; ctx.fillRect(-16, -22, 32, 6);
+            // Желтые наклейки (Ралли ливрея)
+            ctx.fillStyle = '#ffcc00';
+            ctx.fillRect(-5, -15, 10, 30); // Полоса сбоку (в данном случае сверху)
+            // Логотип на капоте
+            ctx.beginPath(); ctx.arc(8, 0, 6, 0, Math.PI*2); ctx.fill();
 
-            if(this.isPlayer) {
-                ctx.fillStyle='#f39c12'; ctx.fillRect(-12, -22, 6, 4); ctx.fillRect(6, -22, 6, 4); // Фары
+            // Стекла
+            ctx.fillStyle = '#111';
+            ctx.fillRect(-8, -10, 8, 20); // Лобовое
+            ctx.fillRect(-16, -8, 4, 16); // Заднее
+
+            // Спойлер
+            ctx.fillStyle = '#0055aa';
+            ctx.fillRect(-22, -16, 6, 32);
+
+            // Фары
+            ctx.fillStyle = '#fff';
+            ctx.fillRect(16, -14, 4, 6); ctx.fillRect(16, 8, 4, 6);
+            
+            // Стопы
+            if(keys.down) {
+                ctx.fillStyle = '#f00'; ctx.shadowBlur=10; ctx.shadowColor='red';
+                ctx.fillRect(-18, -12, 2, 6); ctx.fillRect(-18, 6, 2, 6);
+                ctx.shadowBlur=0;
             }
+
             ctx.restore();
         }
     }
 
-    // --- ENGINE FUNCS ---
-    function distToSeg(p, v, w) { const l2=(v.x-w.x)**2+(v.y-w.y)**2; if(l2==0) return (p.x-v.x)**2+(p.y-v.y)**2; let t=((p.x-v.x)*(w.x-v.x)+(p.y-v.y)*(w.y-v.y))/l2; t=Math.max(0,Math.min(1,t)); return (p.x-(v.x+t*(w.x-v.x)))**2+(p.y-(v.y+t*(w.y-v.y)))**2; }
+    // --- 4. AUDIO ENGINE (SYNTH) ---
+    const AudioEngine = {
+        ctx: null, osc: null, gain: null,
+        init: function() {
+            try {
+                const AC = window.AudioContext || window.webkitAudioContext;
+                this.ctx = new AC();
+                this.master = this.ctx.createGain(); this.master.gain.value = 0.15;
+                this.master.connect(this.ctx.destination);
+                
+                this.osc = this.ctx.createOscillator();
+                this.osc.type = 'sawtooth'; // Агрессивный звук мотора
+                this.osc.frequency.value = 100;
+                
+                this.gain = this.ctx.createGain();
+                this.gain.gain.value = 0;
+                
+                this.osc.connect(this.gain);
+                this.gain.connect(this.master);
+                this.osc.start();
+            } catch(e) {}
+        },
+        rev: function(speed) {
+            if(!this.ctx) return;
+            // Питч зависит от скорости (обороты)
+            let freq = 80 + (speed * 15);
+            this.osc.frequency.setTargetAtTime(freq, this.ctx.currentTime, 0.1);
+            
+            // Громкость: если стоим - тихо урчит, едем - громко
+            let vol = (speed > 0.1) ? 0.3 : 0.1;
+            this.gain.gain.setTargetAtTime(vol, this.ctx.currentTime, 0.1);
+        }
+    };
 
+    // --- 5. MAIN LOOP ---
     function update() {
-        if(gameState!=='GAME') return;
+        if(gameState !== 'GAME') return;
 
         player.update();
-        
-        // Столкновения
-        for(let i=enemies.length-1; i>=0; i--) {
-            let e = enemies[i];
-            e.update();
-            
-            // Проверка тарана
-            let distSq = (player.x-e.x)**2 + (player.y-e.y)**2;
-            if(distSq < 3600) { // 60px
-                let angle = Math.atan2(e.y-player.y, e.x-player.x);
-                let force = 15; // Сильный удар
-                
-                // Физика удара (Player тяжелый, Enemy легкий)
-                e.x += Math.cos(angle) * force * 1.5; 
-                e.y += Math.sin(angle) * force * 1.5;
-                player.x -= Math.cos(angle) * force * 0.2; // Игрок почти не отлетает
-                player.y -= Math.sin(angle) * force * 0.2;
-                
-                // Урон
-                if(Math.abs(player.speed) > 10) {
-                    e.health -= 30;
-                    AudioEngine.play('hit');
-                    for(let k=0; k<8; k++) particles.push({x:e.x, y:e.y, vx:(Math.random()-0.5)*10, vy:(Math.random()-0.5)*10, life:20, c:'#f1c40f', s:5});
-                }
-            }
-            
-            // Попадание ракет
-            for(let j=projectiles.length-1; j>=0; j--) {
-                let p = projectiles[j];
-                if((e.x-p.x)**2 + (e.y-p.y)**2 < 2000) {
-                    e.health-=100; projectiles.splice(j,1); AudioEngine.play('hit');
-                    for(let k=0;k<15;k++) particles.push({x:e.x, y:e.y, vx:(Math.random()-0.5)*15, vy:(Math.random()-0.5)*15, life:30, c:'#e74c3c', s:8});
-                }
-            }
-            
-            if(e.health<=0) enemies.splice(i,1);
-        }
-
-        // Projectiles
-        for(let i=projectiles.length-1; i>=0; i--) { let p=projectiles[i]; p.x+=p.vx; p.y+=p.vy; p.life--; if(p.life<=0) projectiles.splice(i,1); }
-
-        // Camera
-        let tz = 0.75 - (Math.abs(player.speed)/30)*0.15;
-        cam.zoom += (tz - cam.zoom)*0.05;
-        cam.x += (player.x - cam.x)*0.1; cam.y += (player.y - cam.y)*0.1;
-
-        // Laps
-        let ncp = (nextCP+1)%points.length;
-        if((player.x-points[ncp].x)**2+(player.y-points[ncp].y)**2 < 200000) {
-            nextCP=ncp;
-            if(nextCP===0) {
-                laps++; 
-                // New stuff
-                enemies.push(new Car(points[0].x, points[0].y, false));
-                spawnPatches();
-            }
-        }
-
-        if(player.health<=0) gameOver();
 
         // Particles
-        particles.forEach(p => { p.x+=p.vx; p.y+=p.vy; p.life--; });
-        particles = particles.filter(p=>p.life>0);
+        for(let i=particles.length-1; i>=0; i--) {
+            let p = particles[i];
+            p.x += p.vx; p.y += p.vy;
+            p.life--;
+            p.size *= 1.02; // Пыль растет
+            if(p.life <= 0) particles.splice(i,1);
+        }
 
-        // UI
-        document.getElementById('fill-hp').style.width = player.health+'%';
-        document.getElementById('fill-ammo').style.width = (player.ammo/20)*100+'%';
-        document.getElementById('speed-val').innerText = Math.round(Math.abs(player.speed)*4);
+        // Camera Logic
+        cam.x += (player.x - cam.x) * 0.1;
+        cam.y += (player.y - cam.y) * 0.1;
+
+        // UI Updates
+        let time = (Date.now() - startTime) / 1000;
+        document.getElementById('timer').innerText = time.toFixed(2);
+        
+        let gear = 'N';
+        if(player.speed > 1) gear = Math.ceil(player.speed / 5);
+        if(player.speed < -1) gear = 'R';
+        document.getElementById('gear').innerText = gear;
     }
 
     function draw() {
-        if(gameState==='MENU') { ctx.fillStyle='#111'; ctx.fillRect(0,0,canvas.width,canvas.height); return; }
-        ctx.fillStyle='#222'; ctx.fillRect(0,0,canvas.width,canvas.height);
+        if(gameState === 'MENU') { ctx.fillStyle='#0055aa'; ctx.fillRect(0,0,canvas.width,canvas.height); return; }
+
+        // Background (Dirt)
+        ctx.fillStyle = '#5d4037'; // Темная земля
+        ctx.fillRect(0,0,canvas.width,canvas.height);
 
         ctx.save();
         ctx.translate(canvas.width/2, canvas.height/2);
         ctx.scale(cam.zoom, cam.zoom);
         ctx.translate(-cam.x, -cam.y);
 
-        // Ground
-        ctx.fillStyle='#1a1a1a'; 
-        points.forEach(p => ctx.fillRect(p.x-1200, p.y-1200, 800, 800));
+        // Draw Track (Gravel)
+        ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+        ctx.lineWidth = trackWidth + 40; 
+        ctx.strokeStyle = 'rgba(0,0,0,0.3)'; // Тень трассы
+        ctx.beginPath(); drawTrackPath(ctx); ctx.stroke();
 
-        // Road
-        ctx.lineCap='round'; ctx.lineJoin='round';
-        ctx.lineWidth=850; ctx.strokeStyle='#555'; // Бордюр
-        ctx.beginPath(); ctx.moveTo(points[0].x, points[0].y); for(let p of points) ctx.lineTo(p.x, p.y); ctx.closePath(); ctx.stroke();
+        ctx.lineWidth = trackWidth;
+        ctx.strokeStyle = '#8d6e63'; // Гравий (светлее фона)
+        ctx.stroke();
         
-        ctx.lineWidth=750; ctx.strokeStyle='#999'; ctx.stroke(); // Бетон (Светлее)
-        
-        ctx.lineWidth=6; ctx.strokeStyle='#fff'; ctx.setLineDash([100,200]); ctx.stroke(); ctx.setLineDash([]);
+        // Следы шин (можно оптимизировать, но пока просто рисуем поверх асфальта)
+        // В реальной игре лучше использовать canvas для следов, но тут упростим
 
-        // Patches (Mud/Oil)
-        patches.forEach(p => p.draw(ctx));
+        // Trees
+        trees.forEach(t => {
+            // Simple Tree
+            ctx.fillStyle = 'rgba(0,0,0,0.4)'; ctx.beginPath(); ctx.arc(t.x+10, t.y+10, t.r, 0, Math.PI*2); ctx.fill(); // Shadow
+            ctx.fillStyle = '#2e7d32'; ctx.beginPath(); ctx.arc(t.x, t.y, t.r, 0, Math.PI*2); ctx.fill(); // Leaves
+            ctx.fillStyle = '#1b5e20'; ctx.beginPath(); ctx.arc(t.x, t.y, t.r*0.7, 0, Math.PI*2); ctx.fill(); // Detail
+        });
 
-        projectiles.forEach(p => { ctx.fillStyle='#f1c40f'; ctx.beginPath(); ctx.arc(p.x, p.y, 8, 0, Math.PI*2); ctx.fill(); });
-        enemies.forEach(e => e.draw(ctx));
+        // Finish Line
+        let endP = trackPoints[trackPoints.length-1];
+        let prevP = trackPoints[trackPoints.length-2];
+        let angle = Math.atan2(endP.y-prevP.y, endP.x-prevP.x);
+        ctx.save();
+        ctx.translate(endP.x, endP.y);
+        ctx.rotate(angle);
+        ctx.fillStyle = '#fff';
+        ctx.fillRect(0, -trackWidth/2, 20, trackWidth); // Line
+        // Checkered flag pattern
+        for(let i=0; i<10; i++) {
+            ctx.fillStyle = (i%2==0)?'#000':'#fff';
+            ctx.fillRect(0, -trackWidth/2 + i*(trackWidth/10), 20, trackWidth/10);
+        }
+        ctx.restore();
+
+        // Particles (Dust is under the car usually, but we draw simple order)
+        particles.forEach(p => {
+            ctx.fillStyle = p.c;
+            ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, Math.PI*2); ctx.fill();
+        });
+
+        // Player
         player.draw(ctx);
-        particles.forEach(p => { ctx.fillStyle=p.c; ctx.fillRect(p.x, p.y, p.s, p.s); });
 
         ctx.restore();
     }
 
-    function spawnPatches() {
-        let idx = Math.floor(Math.random()*points.length);
-        let p1=points[idx], p2=points[(idx+1)%points.length];
-        // Грязь
-        patches.push(new Patch((p1.x+p2.x)/2 + (Math.random()-0.5)*600, (p1.y+p2.y)/2 + (Math.random()-0.5)*600, 'mud'));
-        // Масло
-        if(Math.random()>0.5) patches.push(new Patch((p1.x+p2.x)/2 + (Math.random()-0.5)*600, (p1.y+p2.y)/2 + (Math.random()-0.5)*600, 'oil'));
+    function drawTrackPath(c) {
+        c.moveTo(trackPoints[0].x, trackPoints[0].y);
+        for(let i=1; i<trackPoints.length; i++) c.lineTo(trackPoints[i].x, trackPoints[i].y);
+    }
+
+    function loop() {
+        requestAnimationFrame(loop);
+        update();
+        draw();
     }
 
     function startGame() {
         AudioEngine.init();
         if(AudioEngine.ctx && AudioEngine.ctx.state==='suspended') AudioEngine.ctx.resume();
+
         document.getElementById('start-screen').classList.add('hidden');
         document.getElementById('gameover-screen').classList.add('hidden');
-        gameState='GAME'; laps=0; nextCP=0;
-        player = new Car(points[0].x, points[0].y, true);
-        cam.x=player.x; cam.y=player.y;
-        enemies=[]; 
-        enemies.push(new Car(points[0].x+200, points[0].y+200, false));
-        patches=[]; spawnPatches(); spawnPatches();
+        
+        generateTrack();
+        player = new RallyCar();
+        cam.x = player.x; cam.y = player.y;
+        particles = [];
+        startTime = Date.now();
+        gameState = 'GAME';
     }
 
-    function gameOver() {
-        gameState='OVER';
-        document.getElementById('final-score').innerText = laps;
+    function finishGame() {
+        let time = (Date.now() - startTime) / 1000;
+        document.getElementById('final-time').innerText = time.toFixed(2);
         document.getElementById('gameover-screen').classList.remove('hidden');
-        if(window.lb) window.lb.setLeaderboardScore('laps', laps);
     }
 
-    // Audio
-    const AudioEngine = {
-        ctx: null, master: null, osc: null, gain: null,
-        init: function() {
-            try {
-                const AC = window.AudioContext || window.webkitAudioContext;
-                this.ctx = new AC();
-                this.master = this.ctx.createGain(); this.master.gain.value = 0.2; this.master.connect(this.ctx.destination);
-                this.osc = this.ctx.createOscillator(); this.osc.type = 'sawtooth';
-                this.gain = this.ctx.createGain(); this.gain.gain.value = 0;
-                this.osc.connect(this.gain); this.gain.connect(this.master); this.osc.start();
-            } catch(e){}
-        },
-        update: function(s) {
-            if(!this.ctx) return;
-            this.osc.frequency.setTargetAtTime(60 + Math.abs(s)*5, this.ctx.currentTime, 0.1);
-            this.gain.gain.setTargetAtTime(0.1, this.ctx.currentTime, 0.1);
-        },
-        play: function(t) {
-            if(!this.ctx) return;
-            const o = this.ctx.createOscillator(); const g = this.ctx.createGain();
-            o.connect(g); g.connect(this.master);
-            if(t==='shoot') { o.type='square'; o.frequency.setValueAtTime(200, this.ctx.currentTime); o.frequency.linearRampToValueAtTime(50, this.ctx.currentTime+0.2); g.gain.setValueAtTime(0.3, this.ctx.currentTime); g.gain.linearRampToValueAtTime(0, this.ctx.currentTime+0.2); o.start(); o.stop(this.ctx.currentTime+0.2); }
-            if(t==='hit') { o.type='noise'; o.frequency.setValueAtTime(100, this.ctx.currentTime); g.gain.setValueAtTime(0.5, this.ctx.currentTime); g.gain.linearRampToValueAtTime(0, this.ctx.currentTime+0.3); o.start(); o.stop(this.ctx.currentTime+0.3); }
-        }
-    };
-
-    // Inputs
-    function btn(id, k) {
-        const b=document.getElementById(id);
-        const s=(v)=>{keys[k]=v; v?b.style.borderColor='#fff':b.style.borderColor= (id=='b-gas'?'#e67e22':'#777');};
-        b.addEventListener('touchstart', e=>{e.preventDefault();s(true)},{passive:false});
-        b.addEventListener('touchend', e=>{e.preventDefault();s(false)},{passive:false});
-        b.addEventListener('mousedown', ()=>s(true)); b.addEventListener('mouseup', ()=>s(false));
+    // --- CONTROLS ---
+    function bindBtn(id, k) {
+        const b = document.getElementById(id);
+        const s = (v) => { keys[k] = v; v?b.style.opacity=0.5:b.style.opacity=1; };
+        b.addEventListener('touchstart', e=>{e.preventDefault(); s(true)},{passive:false});
+        b.addEventListener('touchend', e=>{e.preventDefault(); s(false)},{passive:false});
+        b.addEventListener('mousedown', ()=>s(true)); 
+        b.addEventListener('mouseup', ()=>s(false));
     }
-    btn('b-gas','up'); btn('b-shoot','shoot'); btn('b-left','left'); btn('b-right','right');
+    bindBtn('b-gas','up'); bindBtn('b-brake','down');
+    bindBtn('b-left','left'); bindBtn('b-right','right');
 
     window.onkeydown=e=>{
         if(e.code=='ArrowUp')keys.up=true;
-        if(e.code=='ArrowDown'||e.code=='Space')keys.shoot=true;
+        if(e.code=='ArrowDown')keys.down=true;
         if(e.code=='ArrowLeft')keys.left=true;if(e.code=='ArrowRight')keys.right=true;
     };
     window.onkeyup=e=>{
         if(e.code=='ArrowUp')keys.up=false;
-        if(e.code=='ArrowDown'||e.code=='Space')keys.shoot=false;
+        if(e.code=='ArrowDown')keys.down=false;
         if(e.code=='ArrowLeft')keys.left=false;if(e.code=='ArrowRight')keys.right=false;
     };
 
-    function loop() { requestAnimationFrame(loop); update(); draw(); }
     loop();
 </script>
 </body>
