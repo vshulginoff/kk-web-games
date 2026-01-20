@@ -4,6 +4,18 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>KafeKrematory Launcher</title>
+    
+    <script type="text/javascript">
+        (function(m,e,t,r,i,k,a){
+            m[i]=m[i]||function(){(m[i].a=m[i].a||[]).push(arguments)};
+            m[i].l=1*new Date();
+            for (var j = 0; j < document.scripts.length; j++) {if (document.scripts[j].src === r) { return; }}
+            k=e.createElement(t),a=e.getElementsByTagName(t)[0],k.async=1,k.src=r,a.parentNode.insertBefore(k,a)
+        })(window, document,'script','https://mc.yandex.ru/metrika/tag.js?id=106345234', 'ym');
+
+        ym(106345234, 'init', {ssr:true, webvisor:true, clickmap:true, ecommerce:"dataLayer", accurateTrackBounce:true, trackLinks:true});
+    </script>
+    <noscript><div><img src="https://mc.yandex.ru/watch/106345234" style="position:absolute; left:-9999px;" alt="" /></div></noscript>
     <style>
         :root {
             --bg-color: #ffffff;
@@ -254,7 +266,7 @@
         </div>
         
         <nav style="z-index: 2; font-weight: bold;">
-            [v.2.0_LIVE]
+            [v.2.1_METRICS]
         </nav>
     </header>
 
@@ -271,7 +283,7 @@
     </footer>
 
     <script>
-        // --- 1. СПИСОК ИГР (Обновлен под твои папки) ---
+        // --- 1. СПИСОК ИГР ---
         const games = [
             {
                 id: 1,
@@ -279,7 +291,6 @@
                 genre: "Biological RPG",
                 version: "v1.0",
                 image: "BioCrysis/BioCrysis.png",
-                // Стандартный файл запуска
                 link: "BioCrysis/biocrysis.html" 
             },
             {
@@ -288,7 +299,6 @@
                 genre: "Horror / Maze",
                 version: "Release",
                 image: "LiminalGothic/LIMINALGOTHIC.png",
-                // Уже проверено
                 link: "LiminalGothic/index.html"
             },
             {
@@ -297,7 +307,6 @@
                 genre: "Hardcore Action",
                 version: "Prototype",
                 image: "BrutalSouls/BrutalSouls.png",
-                // Судя по коммиту: Create bsgame.html
                 link: "BrutalSouls/bsgame.html"
             },
             {
@@ -306,15 +315,14 @@
                 genre: "Card Strategy",
                 version: "Demo",
                 image: "CardDeckWoW/CardDeckWoW.png",
-                // Судя по коммиту: Create card.html
                 link: "CardDeckWoW/card.html"
             },
             {
-                id: 5,title: "Brutal Race",
+                id: 5,
+                title: "Brutal Race",
                 genre: "Racing / Combat",
                 version: "Alpha",
                 image:"BrutalRace/BrutalRace.png",
-                // Судя по коммиту: Create brgame.html
                 link: "BrutalRace/brgame.html"
             },
             {
@@ -323,7 +331,6 @@
                 genre: "Experimental",
                 version: "Build 001",
                 image: "NTCgame/NTCgame.png",
-                // Стандартный файл запуска
                 link: "NTCgame/ntcgame.html"
             }
         ];
@@ -331,6 +338,23 @@
         // --- 2. ЛОГИКА ---
         const container = document.getElementById('game-container');
         const searchInput = document.getElementById('search-input');
+
+        // Функция для отслеживания кликов
+        function trackClick(gameTitle) {
+            // 1. Сохраняем локально (для тебя)
+            let stats = JSON.parse(localStorage.getItem('kk_launcher_stats')) || {};
+            if (!stats[gameTitle]) stats[gameTitle] = 0;
+            stats[gameTitle]++;
+            localStorage.setItem('kk_launcher_stats', JSON.stringify(stats));
+            console.log(`[STATS] Запуск: ${gameTitle}.`);
+            
+            // 2. Отправляем в Яндекс.Метрику (ID: 106345234)
+            // Имя события: 'game_launch'
+            // Параметры: Название игры
+            if (typeof ym !== 'undefined') {
+               ym(106345234, 'reachGoal', 'game_launch', { title: gameTitle });
+            }
+        }
 
         function renderGames(filterText = '') {
             container.innerHTML = ''; 
@@ -350,13 +374,19 @@
                 
                 // Клик по всей карточке
                 card.onclick = () => {
-                    // Переход по ссылке
-                    window.location.href = game.link; 
+                    // Записываем статистику
+                    trackClick(game.title);
+                    
+                    // Переход по ссылке с небольшой задержкой (150мс), 
+                    // чтобы Метрика успела отправить данные до ухода со страницы.
+                    setTimeout(() => {
+                         window.location.href = game.link; 
+                    }, 150);
                 };
 
                 card.innerHTML = `
                     <div class="card-image">
-                        <img src="${game.image}" alt="${game.title}">
+                        <img src="${game.image}" alt="${game.title}" onerror="this.src='https://placehold.co/600x400/000000/FFF?text=NO+IMAGE'">
                     </div>
                     <div class="card-info">
                         <div>
@@ -373,14 +403,12 @@
             });
         }
 
-        // Запуск при загрузке
         renderGames(); 
 
-        // Поиск
         searchInput.addEventListener('input', (e) => {
             renderGames(e.target.value);
         });
-
+        
     </script>
 </body>
 </html>
