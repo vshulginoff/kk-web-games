@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>WoW TCG: Vector Version</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.1/fabric.min.js"></script>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #151515; /* Очень темный фон */
+            font-family: 'Segoe UI', sans-serif;
+            color: #ddd;
+            touch-action: none; /* Запрет зума браузера */
+        }
+
+        #ui-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none; /* Пропускать клики сквозь интерфейс к канвасу */
+            z-index: 10;
+        }
+
+        #controls {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            pointer-events: auto; /* Кнопки должны работать */
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            background: linear-gradient(to bottom, #4a4a4a, #2b2b2b);
+            border: 1px solid #d4af37; /* Золотая рамка */
+            color: #d4af37;
+            padding: 12px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.5);
+            font-size: 14px;
+        }
+        .btn:active { transform: translateY(2px); }
+
+        /* Меню действий над картой */
+        #action-menu {
+            position: absolute;
+            display: none;
+            gap: 15px;
+            pointer-events: auto;
+            transform: translate(-50%, -130%);
+            z-index: 20;
+        }
+
+        .circle-btn {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            border: 2px solid white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            cursor: pointer;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.8);
+            font-family: sans-serif;
+        }
+        .tap { background: #d9534f; color: white; } /* Красный */
+        .flip { background: #5bc0de; color: white; } /* Синий */
+
+        #status {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            color: #555;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="ui-layer">
+        <div id="controls">
+            <button class="btn" onclick="spawnVectorCard('Hero')">👑 Герой</button>
+            <button class="btn" onclick="spawnVectorCard('Ally')">⚔️ Орк (Союзник)</button>
+            <button class="btn" onclick="spawnVectorCard('Spell')">✨ Огненный шар</button>
+            <button class="btn" onclick="spawnVectorCard('Quest')">📜 Квест</button>
+            <button class="btn" style="border-color: #777; color: #ccc;" onclick="resetCamera()">👁 Сброс</button>
+        </div>
+
+        <div id="action-menu">
+            <div class="circle-btn tap" onclick="doTap()">↻</div>
+            <div class="circle-btn flip" onclick="doFlip()">👁</div>
+        </div>
+
+        <div id="status">Версия без картинок (Гарантированная работа)</div>
+    </div>
+
+    <canvas id="c"></canvas>
+
+    <script>
+        // --- 1. Настройка ---
+        const canvas = new fabric.Canvas('c', {
+            backgroundColor: '#151515',
+            selection: false, // Отключаем рамку выделения для тача
+            preserveObjectStacking: true
+        });
+
+        function resize() {
+            canvas.setWidth(window.innerWidth);
+            canvas.setHeight(window.innerHeight);
+            drawZones();
+        }
+        window.addEventListener('resize', resize);
+
+        // --- 2. Генератор карт (ВЕКТОРНЫЙ) ---
+        // Рисует карту кодом, не загружая картинки
+        
+        function spawnVectorCard(type) {
+            // Настройки внешнего вида в зависимости от типа
+            let color = '#333';
+            let borderColor = '#fff';
+            let title = 'Card';
+            let icon = '';
+
+            if (type === 'Hero') {
+                color = '#2a1a1a'; // Темно-красный
+                borderColor = '#d4af37'; // Золото
+                title = 'Сильвана';
+                icon = '👑';
+            } else if (type === 'Ally') {
+                color = '#1a2a1a'; // Темно-зеленый
+                borderColor = '#silver';
+                title = 'Грунт Орды';
+                icon = '⚔️';
+            } else if (type === 'Spell') {
+                color = '#1a1a3a'; // Темно-синий
+                borderColor = '#a335ee'; // Фиолетовый (Эпик)
+                title = 'Файербол';
+                icon = '✨';
+            } else if (type === 'Quest') {
+                color = '#3a3a2a'; // Желтоватый
+                borderColor = '#d4af37';
+                title = 'Убить 10 крыс';
+                icon = '📜';
+            }
+
+            // 1. Основа карты (Прямоугольник)
+            const rect = new fabric.Rect({
+                width: 140,
+                height: 200,
+                fill: color,
+                stroke: borderColor,
+                strokeWidth: 4,
+                rx: 10, ry: 10, // Закругленные углы
+                originX: 'center', originY: 'center',
+                shadow: new fabric.Shadow({ color: 'rgba(0,0,0,0.8)', blur: 15, offsetX: 5, offsetY: 5 })
+            });
+
+            // 2. Текст названия
+            const textName = new fabric.Text(title, {
+                fontSize: 16,
+                fill: '#fff',
+                fontFamily: 'Arial',
+                fontWeight: 'bold',
+                originX: 'center', originY: 'center',
+                top: -60 // Сдвиг вверх
+            });
+
+            // 3. Иконка по центру
+            const textIcon = new fabric.Text(icon, {
+                fontSize: 40,
+                originX: 'center', originY: 'center',
+                top: 10
+            });
+
+            // 4. Текст типа (внизу)
+            const textType = new fabric.Text(type.toUpperCase(), {
+                fontSize: 12,
+                fill: '#aaa',
+                originX: 'center', originY: 'center',
+                top: 70
+            });
+
+            // Группируем всё в один объект
+            const group = new fabric.Group([rect, textName, textIcon, textType], {
+                left: canvas.width/2 - 50 + Math.random()*50,
+                top: canvas.height/2 - 50 + Math.random()*50,
+                // Свои свойства:
+                _isTapped: false,
+                _isFaceDown: false,
+                _faceColor: color, // Запоминаем цвет лица
+                _faceBorder: borderColor,
+                _cardTitle: title
+            });
+
+            canvas.add(group);
+            canvas.setActiveObject(group);
+            updateMenu();
+        }
+
+        // --- 3. Логика Действий ---
+
+        const menu = document.getElementById('action-menu');
+
+        function updateMenu() {
+            const obj = canvas.getActiveObject();
+            if (!obj) {
+                menu.style.display = 'none';
+                return;
+            }
+
+            // Ставим меню над объектом
+            // object.oCoords.mt - координаты "Middle Top" (середина верха)
+            const coords = obj.getCoords(); // Получаем углы с учетом поворота
+            // Для простоты берем центр bounding box
+            const bound = obj.getBoundingRect();
+            
+            menu.style.display = 'flex';
+            menu.style.left = (bound.left + bound.width / 2) + 'px';
+            menu.style.top = bound.top + 'px';
+        }
+
+        // При движении карты скрываем меню, при остановке - показываем
+        canvas.on('object:moving', () => menu.style.display = 'none');
+        canvas.on('object:scaling', () => menu.style.display = 'none');
+        canvas.on('object:rotating', () => menu.style.display = 'none');
+        canvas.on('object:modified', updateMenu);
+        canvas.on('selection:created', updateMenu);
+        canvas.on('selection:updated', updateMenu);
+        canvas.on('selection:cleared', () => menu.style.display = 'none');
+
+        // Кнопка: ПЕРЕВЕРНУТЬ (Ресурс)
+        window.doFlip = function() {
+            const obj = canvas.getActiveObject();
+            if (!obj || obj.type !== 'group') return;
+
+            obj._isFaceDown = !obj._isFaceDown;
+            const rect = obj.item(0); // Прямоугольник (основа)
+            const texts = [obj.item(1), obj.item(2), obj.item(3)]; // Тексты
+
+            if (obj._isFaceDown) {
+                // Рубашка (Resource)
+                rect.set('fill', '#081a38'); // Синий цвет рубашки WoW
+                rect.set('stroke', '#444');
+                // Скрываем текст
+                texts.forEach(t => t.set('opacity', 0));
+            } else {
+                // Лицо
+                rect.set('fill', obj._faceColor);
+                rect.set('stroke', obj._faceBorder);
+                // Показываем текст
+                texts.forEach(t => t.set('opacity', 1));
+            }
+            
+            canvas.requestRenderAll();
+        };
+
+        // Кнопка: ПОВЕРНУТЬ (Tap)
+        window.doTap = function() {
+            const obj = canvas.getActiveObject();
+            if (!obj) return;
+
+            obj._isTapped = !obj._isTapped;
+            const angle = obj._isTapped ? 90 : 0;
+            
+            obj.animate('angle', angle, {
+                onChange: canvas.renderAll.bind(canvas),
+                onComplete: updateMenu, // Обновить позицию меню, т.к. рамка изменилась
+                duration: 200,
+                easing: fabric.util.ease.easeOutQuad
+            });
+        };
+        
+        // Двойной клик = Flip
+        canvas.on('mouse:dblclick', () => window.doFlip());
+
+        // --- 4. Зум и Пан (Мультитач + Колесо) ---
+        
+        canvas.on('mouse:wheel', function(opt) {
+            var delta = opt.e.deltaY;
+            var zoom = canvas.getZoom();
+            zoom *= 0.999 ** delta;
+            if (zoom > 5) zoom = 5;
+            if (zoom < 0.2) zoom = 0.2;
+            canvas.zoomToPoint({ x: opt.e.offsetX, y: opt.e.offsetY }, zoom);
+            opt.e.preventDefault();
+            opt.e.stopPropagation();
+            menu.style.display = 'none';
+        });
+
+        // Простой тач-зум (Pinch) - через нативный JS, так как Fabric иногда глючит
+        let initialDistance = 0;
+        let initialZoom = 1;
+        
+        canvas.upperCanvasEl.addEventListener('touchstart', function(e) {
+            if (e.touches.length === 2) {
+                const dx = e.touches[0].clientX - e.touches[1].clientX;
+                const dy = e.touches[0].clientY - e.touches[1].clientY;
+                initialDistance = Math.sqrt(dx*dx + dy*dy);
+                initialZoom = canvas.getZoom();
+                e.preventDefault();
+            }
+        }, { passive: false });
+
+        canvas.upperCanvasEl.addEventListener('touchmove', function(e) {
+            if (e.touches.length === 2 && initialDistance > 0) {
+                const dx = e.touches[0].clientX - e.touches[1].clientX;
+                const dy = e.touches[0].clientY - e.touches[1].clientY;
+                const currentDistance = Math.sqrt(dx*dx + dy*dy);
+                
+                let zoom = initialZoom * (currentDistance / initialDistance);
+                // Ограничения
+                if(zoom > 5) zoom = 5; 
+                if(zoom < 0.3) zoom = 0.3;
+
+                // Зум в центр экрана (проще для тача)
+                const center = canvas.getVpCenter();
+                canvas.zoomToPoint({ x: center.x, y: center.y }, zoom);
+                
+                menu.style.display = 'none'; // Скрываем меню при зуме
+                e.preventDefault();
+            }
+        }, { passive: false });
+
+        window.resetCamera = function() {
+            canvas.setViewportTransform([1,0,0,1,0,0]);
+        }
+
+        // --- 5. Зоны ---
+        function drawZones() {
+            canvas.getObjects().forEach(o => {
+                if (o.isZone) canvas.remove(o);
+            });
+
+            const y = window.innerHeight - 220;
+            const line = new fabric.Line([0, y, window.innerWidth, y], {
+                stroke: '#333', strokeWidth: 2, strokeDashArray: [10, 10],
+                selectable: false, evented: false, isZone: true
+            });
+            const text = new fabric.Text('РЕСУРСЫ (Клади сюда)', {
+                left: 20, top: y + 10, fontSize: 16, fill: '#555',
+                selectable: false, evented: false, isZone: true
+            });
+            
+            canvas.add(line); canvas.add(text);
+            canvas.sendToBack(line); canvas.sendToBack(text);
+        }
+
+        // Старт
+        resize();
+        drawZones();
+        // Спавним 2 тестовые карты
+        spawnVectorCard('Hero');
+        setTimeout(() => spawnVectorCard('Ally'), 200);
+
+    </script>
+</body>
+</html>
