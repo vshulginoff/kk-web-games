@@ -1,0 +1,1075 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Smash Racing: Combat</title>
+    
+    <script src="https://yandex.ru/games/sdk/v2"></script>
+
+    <style>
+        /* INDUSTRIAL PALETTE */
+        :root { --primary: #f39c12; --danger: #e74c3c; --ammo: #f1c40f; --bg: #111; }
+        
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        body {
+            margin: 0; padding: 0; overflow: hidden; background: var(--bg);
+            font-family: monospace; color: white;
+            user-select: none; -webkit-user-select: none;
+            touch-action: none; position: fixed; width: 100%; height: 100%;
+        }
+        canvas { display: block; width: 100%; height: 100%; }
+
+        /* UI */
+        .screen {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+            background: rgba(0,0,0,0.95); z-index: 100; transition: opacity 0.3s;
+        }
+        .hidden { opacity: 0; pointer-events: none; z-index: -1 !important; }
+
+        h1 { font-size: 32px; color: var(--primary); margin: 0 0 10px 0; text-align: center; text-transform: uppercase; text-shadow: 3px 3px 0 #000; }
+        p { color: #ccc; margin-bottom: 20px; text-align: center; max-width: 80%; font-size: 14px;}
+
+        .btn {
+            padding: 15px 50px; font-size: 22px; font-weight: bold;
+            background: linear-gradient(180deg, #f1c40f, #d35400);
+            border: 4px solid #fff; border-radius: 50px; color: #fff; cursor: pointer;
+            box-shadow: 0 6px 0 #a04000; text-transform: uppercase;
+        }
+        .btn:active { transform: translateY(4px); box-shadow: 0 2px 0 #a04000; }
+
+        /* HUD */
+        #hud-top { 
+            position: absolute; top: 10px; right: 10px; 
+            text-align: right; font-weight: bold; font-size: 16px; 
+            pointer-events: none; text-shadow: 2px 2px 0 #000; z-index: 10;
+        }
+        
+        .bar-container {
+            width: 150px; height: 14px; background: #222; 
+            border: 2px solid #555; transform: skewX(-15deg); margin-bottom: 5px;
+        }
+        #hp-fill { width: 100%; height: 100%; background: var(--danger); transition: width 0.2s; }
+        #ammo-fill { width: 100%; height: 100%; background: var(--ammo); transition: width 0.1s; }
+
+        /* LEADERBOARD */
+        .leaderboard-box {
+            width: 90%; max-width: 350px; background: rgba(255,255,255,0.1);
+            border: 2px solid #555; border-radius: 10px; padding: 10px;
+            margin-bottom: 20px; text-align: left;
+        }
+        .lb-row { display: flex; justify-content: space-between; padding: 5px 0; border-bottom: 1px solid #444; font-size: 14px; }
+        .lb-row.me { color: var(--primary); font-weight: bold; }
+
+        /* CONTROLS */
+        .controls { position: absolute; bottom: 30px; width: 100%; height: 120px; display: flex; justify-content: space-between; padding: 0 20px; box-sizing: border-box; pointer-events: none; z-index: 20; }
+        .group { display: flex; gap: 15px; pointer-events: auto; align-items: flex-end; }
+        
+        .c-btn { width: 75px; height: 75px; background: rgba(255,255,255,0.15); border: 2px solid rgba(255,255,255,0.3); border-radius: 15px; display: flex; align-items: center; justify-content: center; font-size: 30px; backdrop-filter: blur(4px); }
+        .c-btn:active { background: rgba(255,255,255,0.4); transform: scale(0.95); }
+    </style>
+</head>
+<body>
+
+<div id="start-screen" class="screen">
+    <h1 id="txt-title">Combat Racing</h1>
+    <p id="txt-desc">Shoot to kill.<br>Collect ammo on track.</p>
+    <button class="btn" onclick="startGame()" id="btn-start">RACE</button>
+</div>
+
+<div id="gameover-screen" class="screen hidden">
+    <h1 style="color:var(--danger)">WASTED</h1>
+    <p>Score: <span id="final-score">0</span></p>
+    
+    <div class="leaderboard-box">
+        <div style="text-align:center; margin-bottom:5px; color:#aaa;">TOP PILOTS</div>
+        <div id="lb-content">Loading...</div>
+    </div>
+
+    <button class="btn" onclick="startGame()" id="btn-retry">RETRY</button>
+</div>
+
+<div id="hud-top">
+    LAP: <span id="lap-counter">1</span> <br>
+    <div class="bar-container"><div id="hp-fill"></div></div>
+    <div class="bar-container" style="border-color:var(--ammo)"><div id="ammo-fill"></div></div>
+</div>
+
+<div class="controls">
+    <div class="group">
+        <div id="b-left" class="c-btn">◄</div>
+        <div id="b-right" class="c-btn">►</div>
+    </div>
+    <div class="group">
+        <div id="b-shoot" class="c-btn" style="background:rgba(200,50,50,0.3)">🔥</div>
+        <div id="b-gas" class="c-btn" style="background:rgba(50,200,50,0.3)">▲</div>
+    </div>
+</div>
+
+<canvas id="gameCanvas"></canvas>
+
+<script>
+    // --- LOCALIZATION & YANDEX ---
+    const LANGS = {
+        en: { title: "Combat Racing", desc: "Shoot to kill.\nCollect ammo!", start: "START", score: "Laps:" },
+        ru: { title: "Боевые Гонки", desc: "Стреляй ракетами (Кнопка Огонь).\nСобирай боеприпасы!", start: "ПОГНАЛИ", score: "Круги:" },
+        tr: { title: "Savaş Yarışı", desc: "Ateş et!\nCephane topla.", start: "BAŞLA", score: "Tur:" }
+    };
+
+    let ysdk = null;
+    let lb = null;
+
+    function initYandex() {
+        if (window.YaGames) {
+            YaGames.init().then(ys => {
+                ysdk = ys;
+                const lang = ys.environment.i18n.lang;
+                applyLang(lang);
+                ys.getLeaderboards().then(_lb => lb = _lb);
+            });
+        } else { applyLang(navigator.language); }
+    }
+
+    function applyLang(code) {
+        const l = (code || 'en').substr(0, 2).toLowerCase();
+        const t = LANGS[l] || LANGS.en;
+        document.getElementById('txt-title').innerText = t.title;
+        document.getElementById('txt-desc').innerText = t.desc;
+        document.getElementById('btn-start').innerText = t.start;
+        document.getElementById('btn-retry').innerText = t.start;
+    }
+
+    function updateLeaderboard(score) {
+        const div = document.getElementById('lb-content');
+        if(!lb) { div.innerHTML = "No Connection"; return; }
+        lb.setLeaderboardScore('laps', score);
+        lb.getLeaderboardEntries('laps', { quantityTop: 5, includeUser: true, quantityAround: 1 })
+          .then(res => {
+              let html = '';
+              res.entries.forEach(e => {
+                  html += `<div class="lb-row ${e.player.uniqueID === res.userRank ? 'me' : ''}">
+                      <span>#${e.rank} ${e.player.publicName || 'User'}</span><span>${e.score}</span>
+                  </div>`;
+              });
+              div.innerHTML = html;
+          });
+    }
+
+    function showAd() { if(ysdk) ysdk.adv.showFullscreenAdv({ callbacks: {} }); }
+
+    initYandex();
+
+    // --- AUDIO ---
+    const AudioEngine = {
+        ctx: null, master: null, osc: null, gain: null,
+        init: function() {
+            if(this.ctx) return;
+            const AC = window.AudioContext || window.webkitAudioContext;
+            this.ctx = new AC();
+            this.master = this.ctx.createGain(); this.master.gain.value = 0.2;
+            this.master.connect(this.ctx.destination);
+            this.osc = this.ctx.createOscillator(); this.osc.type = 'sawtooth';
+            this.gain = this.ctx.createGain(); this.gain.gain.value = 0;
+            this.osc.connect(this.gain); this.gain.connect(this.master);
+            this.osc.start();
+        },
+        update: function(speed) {
+            if(!this.ctx) return;
+            this.osc.frequency.setTargetAtTime(60 + Math.abs(speed)*10, this.ctx.currentTime, 0.1);
+            this.gain.gain.setTargetAtTime(0.15, this.ctx.currentTime, 0.1);
+        },
+        play: function(type) {
+            if(!this.ctx) return;
+            const o = this.ctx.createOscillator(); const g = this.ctx.createGain();
+            o.connect(g); g.connect(this.master);
+            const t = this.ctx.currentTime;
+            
+            if (type === 'shoot') {
+                o.type = 'square'; o.frequency.setValueAtTime(300, t);
+                o.frequency.exponentialRampToValueAtTime(50, t+0.15);
+                g.gain.setValueAtTime(0.3, t); g.gain.exponentialRampToValueAtTime(0.01, t+0.15);
+                o.start(); o.stop(t+0.15);
+            } else if (type === 'hit') {
+                o.type = 'sawtooth'; o.frequency.setValueAtTime(100, t);
+                o.frequency.exponentialRampToValueAtTime(10, t+0.3);
+                g.gain.setValueAtTime(0.5, t); g.gain.exponentialRampToValueAtTime(0.01, t+0.3);
+                o.start(); o.stop(t+0.3);
+            } else if (type === 'pickup') {
+                o.type = 'sine'; o.frequency.setValueAtTime(600, t);
+                o.frequency.linearRampToValueAtTime(1200, t+0.1);
+                g.gain.setValueAtTime(0.3, t); g.gain.exponentialRampToValueAtTime(0.01, t+0.2);
+                o.start(); o.stop(t+0.2);
+            }
+        }
+    };
+
+    // --- GAME ENGINE ---
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d', { alpha: false });
+    function resize() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
+    window.addEventListener('resize', resize); resize();
+
+    // PHYSICS & CONFIG
+    const CONFIG = { 
+        ZOOM: 0.9, ROAD_WIDTH: 650, AMMO_MAX: 15
+    };
+    
+    // Physics constants (Stable handling)
+    const P = {
+        maxSpeed: 17, // Комфортная скорость
+        accel: 0.25,
+        friction: 0.95, // Быстрое замедление (вместо тормоза)
+        turn: 0.05,
+        grip: 0.96
+    };
+
+    let gameState = 'MENU';
+    let keys = {};
+    let player, enemies = [], particles = [], projectiles = [], pickups = [];
+    let laps = 0, nextCP = 0;
+
+    // Track (Long Grand Tour)
+    const points = [
+        {x:0, y:0}, {x:0, y:-4000}, {x:2000, y:-6000}, 
+        {x:5000, y:-6000}, {x:5000, y:-2000}, {x:2000, y:2000}, 
+        {x:-2000, y:2000}, {x:-2000, y:0}
+    ];
+    points.forEach(p => { p.x+=3000; p.y+=5000; });
+
+    // --- DRAWING HELPER (Old Style) ---
+    function drawRoundedRect(ctx, x, y, w, h, r, color) {
+        ctx.fillStyle = color;
+        ctx.beginPath();
+        ctx.moveTo(x+r, y); ctx.lineTo(x+w-r, y);
+        ctx.quadraticCurveTo(x+w, y, x+w, y+r); ctx.lineTo(x+w, y+h-r);
+        ctx.quadraticCurveTo(x+w, y+h, x+w-r, y+h); ctx.lineTo(x+r, y+h);
+        ctx.quadraticCurveTo(x, y+h, x, y+h-r); ctx.lineTo(x, y+r);
+        ctx.quadraticCurveTo(x, y, x+r, y); ctx.fill();
+    }
+
+    // --- CLASSES ---
+    class Projectile {
+        constructor(x, y, angle) {
+            this.x = x; this.y = y;
+            this.vx = Math.cos(angle) * 30;
+            this.vy = Math.sin(angle) * 30;
+            this.life = 50;
+        }
+        update() { this.x+=this.vx; this.y+=this.vy; this.life--; }
+        draw(ctx) {
+            ctx.fillStyle = '#f1c40f';
+            ctx.beginPath(); ctx.arc(this.x, this.y, 6, 0, Math.PI*2); ctx.fill();
+        }
+    }
+
+    class Pickup {
+        constructor(x, y, type) {
+            this.x = x; this.y = y; this.type = type; this.t = 0;
+        }
+        draw(ctx) {
+            this.t += 0.1;
+            const s = 15 + Math.sin(this.t)*3;
+            ctx.save(); ctx.translate(this.x, this.y);
+            ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.beginPath(); ctx.arc(0, 5, s, 0, Math.PI*2); ctx.fill();
+            
+            if(this.type === 'hp') {
+                ctx.fillStyle = '#2ecc71'; ctx.beginPath(); ctx.arc(0,0,s,0,Math.PI*2); ctx.fill();
+                ctx.fillStyle = '#fff'; ctx.font='bold 20px monospace'; ctx.textAlign='center'; ctx.fillText('+',0,6);
+            } else {
+                ctx.fillStyle = '#f1c40f'; ctx.fillRect(-s/2,-s/2,s,s);
+                ctx.fillStyle = '#000'; ctx.font='bold 16px monospace'; ctx.textAlign='center'; ctx.fillText('!',0,5);
+            }
+            ctx.restore();
+        }
+    }
+
+    class Car {
+        constructor(x, y, isPlayer) {
+            this.x=x; this.y=y; this.isPlayer=isPlayer;
+            this.angle = -Math.PI/2;
+            this.speed = 0; this.driftVel = {x:0, y:0};
+            this.w = 32; this.l = 58; this.health = 100;
+            this.ammo = isPlayer ? 10 : 0;
+            this.targetIdx = 1; this.shootTimer = 0;
+
+            if(isPlayer) this.color = '#7f8c8d'; 
+            else this.color = '#c0392b';
+        }
+
+        update() {
+            if(this.isPlayer) {
+                // Shoot
+                if(keys.shoot && this.shootTimer<=0 && this.ammo>0) {
+                    this.ammo--; this.shootTimer=15;
+                    projectiles.push(new Projectile(this.x + Math.cos(this.angle)*40, this.y + Math.sin(this.angle)*40, this.angle));
+                    AudioEngine.play('shoot');
+                    this.speed -= 1; // Recoil
+                }
+                if(this.shootTimer>0) this.shootTimer--;
+
+                // Move
+                if(keys.up) this.speed += P.accel; else this.speed *= P.friction;
+                
+                if(this.speed > P.maxSpeed) this.speed = P.maxSpeed;
+
+                if(Math.abs(this.speed) > 0.5) {
+                    let d = this.speed > 0 ? 1 : -1;
+                    if(keys.left) this.angle -= P.turn * d;
+                    if(keys.right) this.angle += P.turn * d;
+                }
+                
+                AudioEngine.update(this.speed);
+
+            } else {
+                // AI Rubber band
+                let t = points[this.targetIdx];
+                if((this.x-t.x)**2+(this.y-t.y)**2 < 80000) this.targetIdx = (this.targetIdx+1)%points.length;
+                
+                let wa = Math.atan2(t.y-this.y, t.x-this.x);
+                let diff = wa - this.angle;
+                while(diff <= -Math.PI) diff += Math.PI*2; while(diff > Math.PI) diff -= Math.PI*2;
+                if(diff > 0.1) this.angle += 0.04; else if(diff < -0.1) this.angle -= 0.04;
+
+                let targetS = 14;
+                if(Math.hypot(player.x-this.x, player.y-this.y) > 800) targetS = 22; // Catch up
+                if(this.speed < targetS) this.speed += 0.2; else this.speed *= 0.98;
+            }
+
+            // Physics (Shared)
+            const hX = Math.cos(this.angle) * this.speed;
+            const hY = Math.sin(this.angle) * this.speed;
+            this.driftVel.x = this.driftVel.x * 0.9 + hX * 0.1;
+            this.driftVel.y = this.driftVel.y * 0.9 + hY * 0.1;
+            
+            const grip = this.isPlayer ? P.grip : 0.9;
+            this.x += hX * grip + this.driftVel.x * (1 - grip);
+            this.y += hY * grip + this.driftVel.y * (1 - grip);
+
+            // Offroad check
+            let mD = Infinity;
+            for(let i=0; i<points.length; i++) {
+                const p1=points[i], p2=points[(i+1)%points.length];
+                const d = distToSegmentSq(this, p1, p2); if(d<mD) mD=d;
+            }
+            if(mD > (CONFIG.ROAD_WIDTH/2)**2) {
+                this.speed *= 0.9;
+                if(this.isPlayer && Math.abs(this.speed)>5) this.health -= 0.1;
+            }
+        }
+
+        draw(ctx) {
+            ctx.save(); ctx.translate(this.x, this.y); ctx.rotate(this.angle);
+            // Shadow
+            drawRoundedRect(ctx, -this.l/2+4, -this.w/2+4, this.l, this.w, 6, 'rgba(0,0,0,0.4)');
+            // Body (Old Design)
+            drawRoundedRect(ctx, -this.l/2, -this.w/2, this.l, this.w, 8, this.color);
+            
+            if(this.isPlayer) {
+                ctx.fillStyle='#f1c40f'; ctx.fillRect(10, -this.w/2, 10, this.w);
+                ctx.fillStyle='#3498db'; ctx.fillRect(0, -10, 10, 20);
+            } else {
+                ctx.fillStyle='#222'; ctx.fillRect(-5, -12, 10, 24); 
+            }
+            ctx.restore();
+        }
+    }
+
+    function distToSegmentSq(p, v, w) {
+        const l2 = (v.x-w.x)**2 + (v.y-w.y)**2; if(l2==0) return (p.x-v.x)**2+(p.y-v.y)**2;
+        let t = ((p.x-v.x)*(w.x-v.x) + (p.y-v.y)*(w.y-v.y))/l2;
+        t = Math.max(0, Math.min(1, t));
+        return (p.x-(v.x+t*(w.x-v.x)))**2 + (p.y-(v.y+t*(w.y-v.y)))**2;
+    }
+
+    function spawnLoot() {
+        const types = ['hp', 'ammo'];
+        types.forEach(t => {
+            let idx = Math.floor(Math.random()*points.length);
+            let p1 = points[idx], p2 = points[(idx+1)%points.length];
+            let mx = (p1.x+p2.x)/2 + (Math.random()-0.5)*400;
+            let my = (p1.y+p2.y)/2 + (Math.random()-0.5)*400;
+            pickups.push(new Pickup(mx, my, t));
+        });
+    }
+
+    function update() {
+        if(gameState !== 'PLAYING') return;
+
+        player.update();
+        enemies.forEach((e, i) => {
+            e.update();
+            // Rocket hit
+            for(let j=projectiles.length-1; j>=0; j--) {
+                let pr = projectiles[j];
+                if((e.x-pr.x)**2 + (e.y-pr.y)**2 < 2500) {
+                    e.health -= 100;
+                    AudioEngine.play('hit');
+                    projectiles.splice(j, 1);
+                    for(let k=0; k<15; k++) particles.push({x:e.x, y:e.y, vx:(Math.random()-0.5)*10, vy:(Math.random()-0.5)*10, life:30, c:'#e74c3c'});
+                }
+            }
+            if(e.health <= 0) enemies.splice(i, 1);
+        });
+
+        // Projectiles
+        for(let i=projectiles.length-1; i>=0; i--) {
+            let p = projectiles[i]; p.update(); if(p.life<=0) projectiles.splice(i, 1);
+        }
+
+        // Pickups
+        for(let i=pickups.length-1; i>=0; i--) {
+            let p = pickups[i];
+            if((player.x-p.x)**2 + (player.y-p.y)**2 < 3600) {
+                AudioEngine.play('pickup');
+                if(p.type==='hp') player.health = Math.min(100, player.health+50);
+                else player.ammo = Math.min(CONFIG.AMMO_MAX, player.ammo+5);
+                pickups.splice(i, 1);
+            }
+        }
+
+        // Laps
+        let ncp = (nextCP+1)%points.length;
+        if((player.x-points[ncp].x)**2+(player.y-points[ncp].y)**2 < 150000) {
+            nextCP = ncp;
+            if(nextCP === 0) {
+                laps++;
+                spawnLoot();
+                let sp = points[0];
+                let e = new Car(sp.x, sp.y, false); e.targetIdx=1;
+                enemies.push(e);
+            }
+        }
+
+        if(player.health <= 0) gameOver();
+
+        // Particles
+        particles.forEach(p => { p.x+=p.vx; p.y+=p.vy; p.life--; });
+        particles = particles.filter(p => p.life>0);
+
+        // UI
+        document.getElementById('lap-counter').innerText = laps+1;
+        document.getElementById('hp-fill').style.width = player.health + '%';
+        document.getElementById('ammo-fill').style.width = (player.ammo/CONFIG.AMMO_MAX)*100 + '%';
+    }
+
+    function draw() {
+        if(gameState==='MENU') { ctx.fillStyle='#111'; ctx.fillRect(0,0,canvas.width,canvas.height); return; }
+        ctx.fillStyle='#222'; ctx.fillRect(0,0,canvas.width,canvas.height);
+
+        ctx.save();
+        ctx.translate(canvas.width/2, canvas.height/2);
+        ctx.scale(CONFIG.ZOOM, CONFIG.ZOOM);
+        ctx.translate(-player.x, -player.y);
+
+        // Industrial Background (Blocks)
+        ctx.fillStyle='#151515';
+        points.forEach(p => ctx.fillRect(p.x-800, p.y-800, 400, 400));
+
+        // Road
+        ctx.lineCap='round'; ctx.lineJoin='round';
+        ctx.lineWidth = CONFIG.ROAD_WIDTH+60; ctx.strokeStyle='#f1c40f'; // Hazard border
+        ctx.beginPath(); ctx.moveTo(points[0].x, points[0].y); for(let p of points) ctx.lineTo(p.x, p.y); ctx.closePath(); ctx.stroke();
+        
+        ctx.lineWidth = CONFIG.ROAD_WIDTH; ctx.strokeStyle='#555'; ctx.stroke(); // Asphalt
+        
+        ctx.lineWidth=4; ctx.strokeStyle='#333'; ctx.setLineDash([100,150]); ctx.stroke(); ctx.setLineDash([]);
+
+        pickups.forEach(p => p.draw(ctx));
+        projectiles.forEach(p => p.draw(ctx));
+        enemies.forEach(e => e.draw(ctx));
+        player.draw(ctx);
+        particles.forEach(p => { ctx.fillStyle=p.c; ctx.fillRect(p.x, p.y, 6, 6); });
+
+        ctx.restore();
+    }
+
+    function loop() { requestAnimationFrame(loop); update(); draw(); }
+
+    function startGame() {
+        AudioEngine.init();
+        if(AudioEngine.ctx && AudioEngine.ctx.state==='suspended') AudioEngine.ctx.resume();
+        
+        document.getElementById('start-screen').classList.add('hidden');
+        document.getElementById('gameover-screen').classList.add('hidden');
+        gameState = 'PLAYING';
+        laps = 0; nextCP = 0;
+        player = new Car(points[0].x, points[0].y, true);
+        enemies = [];
+        enemies.push(new Car(points[0].x+100, points[0].y+100, false));
+        pickups = []; projectiles = []; spawnLoot();
+    }
+
+    function gameOver() {
+        gameState = 'GAMEOVER';
+        document.getElementById('final-score').innerText = laps;
+        document.getElementById('gameover-screen').classList.remove('hidden');
+        updateLeaderboard(laps);
+        showAd();
+    }
+
+    // Input
+    function bindBtn(id, k) {
+        const b=document.getElementById(id);
+        const s=(v)=>{ keys[k]=v; v?b.style.opacity=0.5:b.style.opacity=1; };
+        b.addEventListener('touchstart', e=>{e.preventDefault(); s(true)}, {passive:false});
+        b.addEventListener('touchend', e=>{e.preventDefault(); s(false)}, {passive:false});
+        b.addEventListener('mousedown', ()=>s(true)); b.addEventListener('mouseup', ()=>s(false));
+    }
+    bindBtn('b-gas','up'); bindBtn('b-shoot','shoot');
+    bindBtn('b-left','left'); bindBtn('b-right','right');
+
+    window.onkeydown=e=>{
+        if(e.code=='ArrowUp')keys.up=true;
+        if(e.code=='ArrowDown'||e.code=='Space')keys.shoot=true;
+        if(e.code=='ArrowLeft')keys.left=true; if(e.code=='ArrowRight')keys.right=true;
+    };
+    window.onkeyup=e=>{
+        if(e.code=='ArrowUp')keys.up=false;
+        if(e.code=='ArrowDown'||e.code=='Space')keys.shoot=false;
+        if(e.code=='ArrowLeft')keys.left=false; if(e.code=='ArrowRight')keys.right=false;
+    };
+
+    loop();
+</script>
+</body>
+</html>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Smash Racing: Combat</title>
+    
+    <script src="https://yandex.ru/games/sdk/v2"></script>
+
+    <style>
+        /* INDUSTRIAL PALETTE */
+        :root { --primary: #f39c12; --danger: #e74c3c; --ammo: #f1c40f; --bg: #111; }
+        
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        body {
+            margin: 0; padding: 0; overflow: hidden; background: var(--bg);
+            font-family: monospace; color: white;
+            user-select: none; -webkit-user-select: none;
+            touch-action: none; position: fixed; width: 100%; height: 100%;
+        }
+        canvas { display: block; width: 100%; height: 100%; }
+
+        /* UI */
+        .screen {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+            background: rgba(0,0,0,0.95); z-index: 100; transition: opacity 0.3s;
+        }
+        .hidden { opacity: 0; pointer-events: none; z-index: -1 !important; }
+
+        h1 { font-size: 32px; color: var(--primary); margin: 0 0 10px 0; text-align: center; text-transform: uppercase; text-shadow: 3px 3px 0 #000; }
+        p { color: #ccc; margin-bottom: 20px; text-align: center; max-width: 80%; font-size: 14px;}
+
+        .btn {
+            padding: 15px 50px; font-size: 22px; font-weight: bold;
+            background: linear-gradient(180deg, #f1c40f, #d35400);
+            border: 4px solid #fff; border-radius: 50px; color: #fff; cursor: pointer;
+            box-shadow: 0 6px 0 #a04000; text-transform: uppercase;
+        }
+        .btn:active { transform: translateY(4px); box-shadow: 0 2px 0 #a04000; }
+
+        /* HUD */
+        #hud-top { 
+            position: absolute; top: 10px; right: 10px; 
+            text-align: right; font-weight: bold; font-size: 16px; 
+            pointer-events: none; text-shadow: 2px 2px 0 #000; z-index: 10;
+        }
+        
+        .bar-container {
+            width: 150px; height: 14px; background: #222; 
+            border: 2px solid #555; transform: skewX(-15deg); margin-bottom: 5px;
+        }
+        #hp-fill { width: 100%; height: 100%; background: var(--danger); transition: width 0.2s; }
+        #ammo-fill { width: 100%; height: 100%; background: var(--ammo); transition: width 0.1s; }
+
+        /* LEADERBOARD */
+        .leaderboard-box {
+            width: 90%; max-width: 350px; background: rgba(255,255,255,0.1);
+            border: 2px solid #555; border-radius: 10px; padding: 10px;
+            margin-bottom: 20px; text-align: left;
+        }
+        .lb-row { display: flex; justify-content: space-between; padding: 5px 0; border-bottom: 1px solid #444; font-size: 14px; }
+        .lb-row.me { color: var(--primary); font-weight: bold; }
+
+        /* CONTROLS */
+        .controls { position: absolute; bottom: 30px; width: 100%; height: 120px; display: flex; justify-content: space-between; padding: 0 20px; box-sizing: border-box; pointer-events: none; z-index: 20; }
+        .group { display: flex; gap: 15px; pointer-events: auto; align-items: flex-end; }
+        
+        .c-btn { width: 75px; height: 75px; background: rgba(255,255,255,0.15); border: 2px solid rgba(255,255,255,0.3); border-radius: 15px; display: flex; align-items: center; justify-content: center; font-size: 30px; backdrop-filter: blur(4px); }
+        .c-btn:active { background: rgba(255,255,255,0.4); transform: scale(0.95); }
+    </style>
+</head>
+<body>
+
+<div id="start-screen" class="screen">
+    <h1 id="txt-title">Combat Racing</h1>
+    <p id="txt-desc">Shoot to kill.<br>Collect ammo on track.</p>
+    <button class="btn" onclick="startGame()" id="btn-start">RACE</button>
+</div>
+
+<div id="gameover-screen" class="screen hidden">
+    <h1 style="color:var(--danger)">WASTED</h1>
+    <p>Score: <span id="final-score">0</span></p>
+    
+    <div class="leaderboard-box">
+        <div style="text-align:center; margin-bottom:5px; color:#aaa;">TOP PILOTS</div>
+        <div id="lb-content">Loading...</div>
+    </div>
+
+    <button class="btn" onclick="startGame()" id="btn-retry">RETRY</button>
+</div>
+
+<div id="hud-top">
+    LAP: <span id="lap-counter">1</span> <br>
+    <div class="bar-container"><div id="hp-fill"></div></div>
+    <div class="bar-container" style="border-color:var(--ammo)"><div id="ammo-fill"></div></div>
+</div>
+
+<div class="controls">
+    <div class="group">
+        <div id="b-left" class="c-btn">◄</div>
+        <div id="b-right" class="c-btn">►</div>
+    </div>
+    <div class="group">
+        <div id="b-shoot" class="c-btn" style="background:rgba(200,50,50,0.3)">🔥</div>
+        <div id="b-gas" class="c-btn" style="background:rgba(50,200,50,0.3)">▲</div>
+    </div>
+</div>
+
+<canvas id="gameCanvas"></canvas>
+
+<script>
+    // --- LOCALIZATION & YANDEX ---
+    const LANGS = {
+        en: { title: "Combat Racing", desc: "Shoot to kill.\nCollect ammo!", start: "START", score: "Laps:" },
+        ru: { title: "Боевые Гонки", desc: "Стреляй ракетами (Кнопка Огонь).\nСобирай боеприпасы!", start: "ПОГНАЛИ", score: "Круги:" },
+        tr: { title: "Savaş Yarışı", desc: "Ateş et!\nCephane topla.", start: "BAŞLA", score: "Tur:" }
+    };
+
+    let ysdk = null;
+    let lb = null;
+
+    function initYandex() {
+        if (window.YaGames) {
+            YaGames.init().then(ys => {
+                ysdk = ys;
+                const lang = ys.environment.i18n.lang;
+                applyLang(lang);
+                ys.getLeaderboards().then(_lb => lb = _lb);
+            });
+        } else { applyLang(navigator.language); }
+    }
+
+    function applyLang(code) {
+        const l = (code || 'en').substr(0, 2).toLowerCase();
+        const t = LANGS[l] || LANGS.en;
+        document.getElementById('txt-title').innerText = t.title;
+        document.getElementById('txt-desc').innerText = t.desc;
+        document.getElementById('btn-start').innerText = t.start;
+        document.getElementById('btn-retry').innerText = t.start;
+    }
+
+    function updateLeaderboard(score) {
+        const div = document.getElementById('lb-content');
+        if(!lb) { div.innerHTML = "No Connection"; return; }
+        lb.setLeaderboardScore('laps', score);
+        lb.getLeaderboardEntries('laps', { quantityTop: 5, includeUser: true, quantityAround: 1 })
+          .then(res => {
+              let html = '';
+              res.entries.forEach(e => {
+                  html += `<div class="lb-row ${e.player.uniqueID === res.userRank ? 'me' : ''}">
+                      <span>#${e.rank} ${e.player.publicName || 'User'}</span><span>${e.score}</span>
+                  </div>`;
+              });
+              div.innerHTML = html;
+          });
+    }
+
+    function showAd() { if(ysdk) ysdk.adv.showFullscreenAdv({ callbacks: {} }); }
+
+    initYandex();
+
+    // --- AUDIO ---
+    const AudioEngine = {
+        ctx: null, master: null, osc: null, gain: null,
+        init: function() {
+            if(this.ctx) return;
+            const AC = window.AudioContext || window.webkitAudioContext;
+            this.ctx = new AC();
+            this.master = this.ctx.createGain(); this.master.gain.value = 0.2;
+            this.master.connect(this.ctx.destination);
+            this.osc = this.ctx.createOscillator(); this.osc.type = 'sawtooth';
+            this.gain = this.ctx.createGain(); this.gain.gain.value = 0;
+            this.osc.connect(this.gain); this.gain.connect(this.master);
+            this.osc.start();
+        },
+        update: function(speed) {
+            if(!this.ctx) return;
+            this.osc.frequency.setTargetAtTime(60 + Math.abs(speed)*10, this.ctx.currentTime, 0.1);
+            this.gain.gain.setTargetAtTime(0.15, this.ctx.currentTime, 0.1);
+        },
+        play: function(type) {
+            if(!this.ctx) return;
+            const o = this.ctx.createOscillator(); const g = this.ctx.createGain();
+            o.connect(g); g.connect(this.master);
+            const t = this.ctx.currentTime;
+            
+            if (type === 'shoot') {
+                o.type = 'square'; o.frequency.setValueAtTime(300, t);
+                o.frequency.exponentialRampToValueAtTime(50, t+0.15);
+                g.gain.setValueAtTime(0.3, t); g.gain.exponentialRampToValueAtTime(0.01, t+0.15);
+                o.start(); o.stop(t+0.15);
+            } else if (type === 'hit') {
+                o.type = 'sawtooth'; o.frequency.setValueAtTime(100, t);
+                o.frequency.exponentialRampToValueAtTime(10, t+0.3);
+                g.gain.setValueAtTime(0.5, t); g.gain.exponentialRampToValueAtTime(0.01, t+0.3);
+                o.start(); o.stop(t+0.3);
+            } else if (type === 'pickup') {
+                o.type = 'sine'; o.frequency.setValueAtTime(600, t);
+                o.frequency.linearRampToValueAtTime(1200, t+0.1);
+                g.gain.setValueAtTime(0.3, t); g.gain.exponentialRampToValueAtTime(0.01, t+0.2);
+                o.start(); o.stop(t+0.2);
+            }
+        }
+    };
+
+    // --- GAME ENGINE ---
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d', { alpha: false });
+    function resize() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
+    window.addEventListener('resize', resize); resize();
+
+    // PHYSICS & CONFIG
+    const CONFIG = { 
+        ZOOM: 0.9, ROAD_WIDTH: 650, AMMO_MAX: 15
+    };
+    
+    // Physics constants (Stable handling)
+    const P = {
+        maxSpeed: 17, // Комфортная скорость
+        accel: 0.25,
+        friction: 0.95, // Быстрое замедление (вместо тормоза)
+        turn: 0.05,
+        grip: 0.96
+    };
+
+    let gameState = 'MENU';
+    let keys = {};
+    let player, enemies = [], particles = [], projectiles = [], pickups = [];
+    let laps = 0, nextCP = 0;
+
+    // Track (Long Grand Tour)
+    const points = [
+        {x:0, y:0}, {x:0, y:-4000}, {x:2000, y:-6000}, 
+        {x:5000, y:-6000}, {x:5000, y:-2000}, {x:2000, y:2000}, 
+        {x:-2000, y:2000}, {x:-2000, y:0}
+    ];
+    points.forEach(p => { p.x+=3000; p.y+=5000; });
+
+    // --- DRAWING HELPER (Old Style) ---
+    function drawRoundedRect(ctx, x, y, w, h, r, color) {
+        ctx.fillStyle = color;
+        ctx.beginPath();
+        ctx.moveTo(x+r, y); ctx.lineTo(x+w-r, y);
+        ctx.quadraticCurveTo(x+w, y, x+w, y+r); ctx.lineTo(x+w, y+h-r);
+        ctx.quadraticCurveTo(x+w, y+h, x+w-r, y+h); ctx.lineTo(x+r, y+h);
+        ctx.quadraticCurveTo(x, y+h, x, y+h-r); ctx.lineTo(x, y+r);
+        ctx.quadraticCurveTo(x, y, x+r, y); ctx.fill();
+    }
+
+    // --- CLASSES ---
+    class Projectile {
+        constructor(x, y, angle) {
+            this.x = x; this.y = y;
+            this.vx = Math.cos(angle) * 30;
+            this.vy = Math.sin(angle) * 30;
+            this.life = 50;
+        }
+        update() { this.x+=this.vx; this.y+=this.vy; this.life--; }
+        draw(ctx) {
+            ctx.fillStyle = '#f1c40f';
+            ctx.beginPath(); ctx.arc(this.x, this.y, 6, 0, Math.PI*2); ctx.fill();
+        }
+    }
+
+    class Pickup {
+        constructor(x, y, type) {
+            this.x = x; this.y = y; this.type = type; this.t = 0;
+        }
+        draw(ctx) {
+            this.t += 0.1;
+            const s = 15 + Math.sin(this.t)*3;
+            ctx.save(); ctx.translate(this.x, this.y);
+            ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.beginPath(); ctx.arc(0, 5, s, 0, Math.PI*2); ctx.fill();
+            
+            if(this.type === 'hp') {
+                ctx.fillStyle = '#2ecc71'; ctx.beginPath(); ctx.arc(0,0,s,0,Math.PI*2); ctx.fill();
+                ctx.fillStyle = '#fff'; ctx.font='bold 20px monospace'; ctx.textAlign='center'; ctx.fillText('+',0,6);
+            } else {
+                ctx.fillStyle = '#f1c40f'; ctx.fillRect(-s/2,-s/2,s,s);
+                ctx.fillStyle = '#000'; ctx.font='bold 16px monospace'; ctx.textAlign='center'; ctx.fillText('!',0,5);
+            }
+            ctx.restore();
+        }
+    }
+
+    class Car {
+        constructor(x, y, isPlayer) {
+            this.x=x; this.y=y; this.isPlayer=isPlayer;
+            this.angle = -Math.PI/2;
+            this.speed = 0; this.driftVel = {x:0, y:0};
+            this.w = 32; this.l = 58; this.health = 100;
+            this.ammo = isPlayer ? 10 : 0;
+            this.targetIdx = 1; this.shootTimer = 0;
+
+            if(isPlayer) this.color = '#7f8c8d'; 
+            else this.color = '#c0392b';
+        }
+
+        update() {
+            if(this.isPlayer) {
+                // Shoot
+                if(keys.shoot && this.shootTimer<=0 && this.ammo>0) {
+                    this.ammo--; this.shootTimer=15;
+                    projectiles.push(new Projectile(this.x + Math.cos(this.angle)*40, this.y + Math.sin(this.angle)*40, this.angle));
+                    AudioEngine.play('shoot');
+                    this.speed -= 1; // Recoil
+                }
+                if(this.shootTimer>0) this.shootTimer--;
+
+                // Move
+                if(keys.up) this.speed += P.accel; else this.speed *= P.friction;
+                
+                if(this.speed > P.maxSpeed) this.speed = P.maxSpeed;
+
+                if(Math.abs(this.speed) > 0.5) {
+                    let d = this.speed > 0 ? 1 : -1;
+                    if(keys.left) this.angle -= P.turn * d;
+                    if(keys.right) this.angle += P.turn * d;
+                }
+                
+                AudioEngine.update(this.speed);
+
+            } else {
+                // AI Rubber band
+                let t = points[this.targetIdx];
+                if((this.x-t.x)**2+(this.y-t.y)**2 < 80000) this.targetIdx = (this.targetIdx+1)%points.length;
+                
+                let wa = Math.atan2(t.y-this.y, t.x-this.x);
+                let diff = wa - this.angle;
+                while(diff <= -Math.PI) diff += Math.PI*2; while(diff > Math.PI) diff -= Math.PI*2;
+                if(diff > 0.1) this.angle += 0.04; else if(diff < -0.1) this.angle -= 0.04;
+
+                let targetS = 14;
+                if(Math.hypot(player.x-this.x, player.y-this.y) > 800) targetS = 22; // Catch up
+                if(this.speed < targetS) this.speed += 0.2; else this.speed *= 0.98;
+            }
+
+            // Physics (Shared)
+            const hX = Math.cos(this.angle) * this.speed;
+            const hY = Math.sin(this.angle) * this.speed;
+            this.driftVel.x = this.driftVel.x * 0.9 + hX * 0.1;
+            this.driftVel.y = this.driftVel.y * 0.9 + hY * 0.1;
+            
+            const grip = this.isPlayer ? P.grip : 0.9;
+            this.x += hX * grip + this.driftVel.x * (1 - grip);
+            this.y += hY * grip + this.driftVel.y * (1 - grip);
+
+            // Offroad check
+            let mD = Infinity;
+            for(let i=0; i<points.length; i++) {
+                const p1=points[i], p2=points[(i+1)%points.length];
+                const d = distToSegmentSq(this, p1, p2); if(d<mD) mD=d;
+            }
+            if(mD > (CONFIG.ROAD_WIDTH/2)**2) {
+                this.speed *= 0.9;
+                if(this.isPlayer && Math.abs(this.speed)>5) this.health -= 0.1;
+            }
+        }
+
+        draw(ctx) {
+            ctx.save(); ctx.translate(this.x, this.y); ctx.rotate(this.angle);
+            // Shadow
+            drawRoundedRect(ctx, -this.l/2+4, -this.w/2+4, this.l, this.w, 6, 'rgba(0,0,0,0.4)');
+            // Body (Old Design)
+            drawRoundedRect(ctx, -this.l/2, -this.w/2, this.l, this.w, 8, this.color);
+            
+            if(this.isPlayer) {
+                ctx.fillStyle='#f1c40f'; ctx.fillRect(10, -this.w/2, 10, this.w);
+                ctx.fillStyle='#3498db'; ctx.fillRect(0, -10, 10, 20);
+            } else {
+                ctx.fillStyle='#222'; ctx.fillRect(-5, -12, 10, 24); 
+            }
+            ctx.restore();
+        }
+    }
+
+    function distToSegmentSq(p, v, w) {
+        const l2 = (v.x-w.x)**2 + (v.y-w.y)**2; if(l2==0) return (p.x-v.x)**2+(p.y-v.y)**2;
+        let t = ((p.x-v.x)*(w.x-v.x) + (p.y-v.y)*(w.y-v.y))/l2;
+        t = Math.max(0, Math.min(1, t));
+        return (p.x-(v.x+t*(w.x-v.x)))**2 + (p.y-(v.y+t*(w.y-v.y)))**2;
+    }
+
+    function spawnLoot() {
+        const types = ['hp', 'ammo'];
+        types.forEach(t => {
+            let idx = Math.floor(Math.random()*points.length);
+            let p1 = points[idx], p2 = points[(idx+1)%points.length];
+            let mx = (p1.x+p2.x)/2 + (Math.random()-0.5)*400;
+            let my = (p1.y+p2.y)/2 + (Math.random()-0.5)*400;
+            pickups.push(new Pickup(mx, my, t));
+        });
+    }
+
+    function update() {
+        if(gameState !== 'PLAYING') return;
+
+        player.update();
+        enemies.forEach((e, i) => {
+            e.update();
+            // Rocket hit
+            for(let j=projectiles.length-1; j>=0; j--) {
+                let pr = projectiles[j];
+                if((e.x-pr.x)**2 + (e.y-pr.y)**2 < 2500) {
+                    e.health -= 100;
+                    AudioEngine.play('hit');
+                    projectiles.splice(j, 1);
+                    for(let k=0; k<15; k++) particles.push({x:e.x, y:e.y, vx:(Math.random()-0.5)*10, vy:(Math.random()-0.5)*10, life:30, c:'#e74c3c'});
+                }
+            }
+            if(e.health <= 0) enemies.splice(i, 1);
+        });
+
+        // Projectiles
+        for(let i=projectiles.length-1; i>=0; i--) {
+            let p = projectiles[i]; p.update(); if(p.life<=0) projectiles.splice(i, 1);
+        }
+
+        // Pickups
+        for(let i=pickups.length-1; i>=0; i--) {
+            let p = pickups[i];
+            if((player.x-p.x)**2 + (player.y-p.y)**2 < 3600) {
+                AudioEngine.play('pickup');
+                if(p.type==='hp') player.health = Math.min(100, player.health+50);
+                else player.ammo = Math.min(CONFIG.AMMO_MAX, player.ammo+5);
+                pickups.splice(i, 1);
+            }
+        }
+
+        // Laps
+        let ncp = (nextCP+1)%points.length;
+        if((player.x-points[ncp].x)**2+(player.y-points[ncp].y)**2 < 150000) {
+            nextCP = ncp;
+            if(nextCP === 0) {
+                laps++;
+                spawnLoot();
+                let sp = points[0];
+                let e = new Car(sp.x, sp.y, false); e.targetIdx=1;
+                enemies.push(e);
+            }
+        }
+
+        if(player.health <= 0) gameOver();
+
+        // Particles
+        particles.forEach(p => { p.x+=p.vx; p.y+=p.vy; p.life--; });
+        particles = particles.filter(p => p.life>0);
+
+        // UI
+        document.getElementById('lap-counter').innerText = laps+1;
+        document.getElementById('hp-fill').style.width = player.health + '%';
+        document.getElementById('ammo-fill').style.width = (player.ammo/CONFIG.AMMO_MAX)*100 + '%';
+    }
+
+    function draw() {
+        if(gameState==='MENU') { ctx.fillStyle='#111'; ctx.fillRect(0,0,canvas.width,canvas.height); return; }
+        ctx.fillStyle='#222'; ctx.fillRect(0,0,canvas.width,canvas.height);
+
+        ctx.save();
+        ctx.translate(canvas.width/2, canvas.height/2);
+        ctx.scale(CONFIG.ZOOM, CONFIG.ZOOM);
+        ctx.translate(-player.x, -player.y);
+
+        // Industrial Background (Blocks)
+        ctx.fillStyle='#151515';
+        points.forEach(p => ctx.fillRect(p.x-800, p.y-800, 400, 400));
+
+        // Road
+        ctx.lineCap='round'; ctx.lineJoin='round';
+        ctx.lineWidth = CONFIG.ROAD_WIDTH+60; ctx.strokeStyle='#f1c40f'; // Hazard border
+        ctx.beginPath(); ctx.moveTo(points[0].x, points[0].y); for(let p of points) ctx.lineTo(p.x, p.y); ctx.closePath(); ctx.stroke();
+        
+        ctx.lineWidth = CONFIG.ROAD_WIDTH; ctx.strokeStyle='#555'; ctx.stroke(); // Asphalt
+        
+        ctx.lineWidth=4; ctx.strokeStyle='#333'; ctx.setLineDash([100,150]); ctx.stroke(); ctx.setLineDash([]);
+
+        pickups.forEach(p => p.draw(ctx));
+        projectiles.forEach(p => p.draw(ctx));
+        enemies.forEach(e => e.draw(ctx));
+        player.draw(ctx);
+        particles.forEach(p => { ctx.fillStyle=p.c; ctx.fillRect(p.x, p.y, 6, 6); });
+
+        ctx.restore();
+    }
+
+    function loop() { requestAnimationFrame(loop); update(); draw(); }
+
+    function startGame() {
+        AudioEngine.init();
+        if(AudioEngine.ctx && AudioEngine.ctx.state==='suspended') AudioEngine.ctx.resume();
+        
+        document.getElementById('start-screen').classList.add('hidden');
+        document.getElementById('gameover-screen').classList.add('hidden');
+        gameState = 'PLAYING';
+        laps = 0; nextCP = 0;
+        player = new Car(points[0].x, points[0].y, true);
+        enemies = [];
+        enemies.push(new Car(points[0].x+100, points[0].y+100, false));
+        pickups = []; projectiles = []; spawnLoot();
+    }
+
+    function gameOver() {
+        gameState = 'GAMEOVER';
+        document.getElementById('final-score').innerText = laps;
+        document.getElementById('gameover-screen').classList.remove('hidden');
+        updateLeaderboard(laps);
+        showAd();
+    }
+
+    // Input
+    function bindBtn(id, k) {
+        const b=document.getElementById(id);
+        const s=(v)=>{ keys[k]=v; v?b.style.opacity=0.5:b.style.opacity=1; };
+        b.addEventListener('touchstart', e=>{e.preventDefault(); s(true)}, {passive:false});
+        b.addEventListener('touchend', e=>{e.preventDefault(); s(false)}, {passive:false});
+        b.addEventListener('mousedown', ()=>s(true)); b.addEventListener('mouseup', ()=>s(false));
+    }
+    bindBtn('b-gas','up'); bindBtn('b-shoot','shoot');
+    bindBtn('b-left','left'); bindBtn('b-right','right');
+
+    window.onkeydown=e=>{
+        if(e.code=='ArrowUp')keys.up=true;
+        if(e.code=='ArrowDown'||e.code=='Space')keys.shoot=true;
+        if(e.code=='ArrowLeft')keys.left=true; if(e.code=='ArrowRight')keys.right=true;
+    };
+    window.onkeyup=e=>{
+        if(e.code=='ArrowUp')keys.up=false;
+        if(e.code=='ArrowDown'||e.code=='Space')keys.shoot=false;
+        if(e.code=='ArrowLeft')keys.left=false; if(e.code=='ArrowRight')keys.right=false;
+    };
+
+    loop();
+</script>
+</body>
+</html>
+
