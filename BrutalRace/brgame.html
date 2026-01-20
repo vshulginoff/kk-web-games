@@ -3,13 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Rally Legends: Top Down</title>
+    <title>Rally Legends: Heavy Gravel</title>
     <script src="https://yandex.ru/games/sdk/v2"></script>
     <style>
-        /* COLIN MCRAE STYLE UI */
         @import url('https://fonts.googleapis.com/css2?family=Exo+2:wght@400;700;900&display=swap');
 
-        :root { --rally-blue: #0055aa; --rally-yellow: #ffcc00; --bg: #3e3832; }
+        :root { --rally-blue: #004488; --rally-yellow: #ffcc00; --bg: #2b2b2b; }
         
         * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
         body {
@@ -19,32 +18,31 @@
         }
         canvas { display: block; width: 100%; height: 100%; }
 
-        /* UI OVERLAY */
+        /* UI */
         .ui-layer {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
             pointer-events: none; display: flex; flex-direction: column; justify-content: space-between;
         }
 
-        /* MENU SCREEN */
         .screen {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0, 85, 170, 0.95); /* Rally Blue */
+            background: rgba(0, 68, 136, 0.95);
             display: flex; flex-direction: column; align-items: center; justify-content: center;
-            z-index: 100; transition: opacity 0.3s; pointer-events: auto;
+            z-index: 100; pointer-events: auto; transition: opacity 0.3s;
         }
         .hidden { opacity: 0; pointer-events: none; z-index: -1; }
 
         h1 { 
-            font-size: 48px; font-weight: 900; font-style: italic; 
-            text-transform: uppercase; letter-spacing: 2px; margin: 0;
+            font-size: 40px; font-weight: 900; font-style: italic; 
+            text-transform: uppercase; margin: 0; letter-spacing: 2px;
             border-bottom: 4px solid var(--rally-yellow); padding-bottom: 10px;
         }
-        p { font-size: 18px; color: #ddd; margin-bottom: 40px; }
+        p { font-size: 16px; color: #ccc; margin-bottom: 40px; max-width: 80%; text-align: center; }
 
         .btn {
-            background: transparent; border: 2px solid white; color: white;
-            padding: 15px 60px; font-size: 24px; font-weight: 700; text-transform: uppercase;
-            cursor: pointer; transition: all 0.2s; font-family: 'Exo 2', sans-serif;
+            background: transparent; border: 3px solid white; color: white;
+            padding: 15px 50px; font-size: 20px; font-weight: 800; text-transform: uppercase;
+            cursor: pointer; transition: all 0.2s; font-family: inherit;
         }
         .btn:active { background: white; color: var(--rally-blue); transform: scale(0.95); }
 
@@ -55,21 +53,18 @@
         }
         .timer-box { color: var(--rally-yellow); font-family: monospace; font-size: 32px; }
         .gear-indicator { 
-            width: 50px; height: 50px; border: 2px solid white; border-radius: 50%;
-            display: flex; align-items: center; justify-content: center; font-size: 28px;
+            width: 50px; height: 50px; border: 3px solid white; border-radius: 5px;
+            display: flex; align-items: center; justify-content: center; font-size: 28px; background: rgba(0,0,0,0.5);
         }
 
         /* CONTROLS */
-        .controls { 
-            display: flex; justify-content: space-between; padding: 20px; 
-            pointer-events: none; margin-bottom: 20px;
-        }
+        .controls { display: flex; justify-content: space-between; padding: 20px; pointer-events: none; margin-bottom: 20px; }
         .c-group { display: flex; gap: 20px; pointer-events: auto; align-items: flex-end; }
         .c-btn {
             width: 80px; height: 80px; background: rgba(255,255,255,0.1);
-            border: 2px solid rgba(255,255,255,0.5); border-radius: 10px;
+            border: 2px solid rgba(255,255,255,0.4); border-radius: 12px;
             display: flex; align-items: center; justify-content: center;
-            font-size: 30px; color: white; backdrop-filter: blur(5px);
+            font-size: 32px; color: white; backdrop-filter: blur(4px);
         }
         .c-btn:active { background: rgba(255,255,255,0.3); border-color: var(--rally-yellow); }
     </style>
@@ -78,12 +73,12 @@
 
 <div id="start-screen" class="screen">
     <h1>RALLY LEGENDS</h1>
-    <p>STAGE 1: FOREST GRAVEL</p>
+    <p>HEAVY GRAVEL SPEC.<br>Use inertia to turn.</p>
     <button class="btn" onclick="startGame()">START STAGE</button>
 </div>
 
 <div id="gameover-screen" class="screen hidden">
-    <h1 id="go-title">STAGE FINISH</h1>
+    <h1>FINISHED</h1>
     <p>TIME: <span id="final-time">00:00.00</span></p>
     <button class="btn" onclick="startGame()">RESTART</button>
 </div>
@@ -100,8 +95,8 @@
             <div id="b-right" class="c-btn">►</div>
         </div>
         <div class="c-group">
-            <div id="b-brake" class="c-btn" style="border-color:#ff4444">B</div>
-            <div id="b-gas" class="c-btn" style="border-color:#44ff44">A</div>
+            <div id="b-brake" class="c-btn" style="border-color:#ff5555">B</div>
+            <div id="b-gas" class="c-btn" style="border-color:#55ff55">A</div>
         </div>
     </div>
 </div>
@@ -109,20 +104,25 @@
 <canvas id="gameCanvas"></canvas>
 
 <script>
-    // --- 1. RALLY PHYSICS CONFIG ---
+    // --- 1. HEAVY PHYSICS CONFIG ---
     const PHYS = {
-        maxSpeed: 22,        // Достаточно быстро для ралли
-        accel: 0.18,         // Мощный разгон (полный привод)
-        friction: 0.98,      // Гравий (машина катится)
-        turnSpeed: 0.055,    // Острый руль
-        grip: 0.91,          // Скользко! (0.9 - лед, 1.0 - асфальт)
-        driftDecay: 0.94     // Как быстро гасится боковое скольжение
+        maxSpeed: 16.5,      // Ограничено "3-й передачей". (Было 22)
+        accel: 0.09,         // Тяжелый разгон. Нужно время, чтобы набрать ход. (Было 0.18)
+        
+        // Инерция движения вперед
+        friction: 0.99,      // Почти нет трения качения. Машина тяжелая, сама не останавливается.
+        
+        // Рулежка
+        turnSpeed: 0.038,    // Тугой руль.
+        
+        // Занос
+        grip: 0.93,          // Держит дорогу, пока не сорвешь
+        driftMass: 0.97      // Инерция бокового скольжения. Чем ближе к 1.0, тем дольше несет боком.
     };
 
-    // --- 2. ENGINE SETUP ---
+    // --- 2. ENGINE ---
     const canvas = document.getElementById('gameCanvas');
     const ctx = canvas.getContext('2d', { alpha: false });
-    
     function resize() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
     window.addEventListener('resize', resize); resize();
 
@@ -132,32 +132,23 @@
     let particles = [];
     let trees = [];
     let startTime = 0;
-    let finishTime = 0;
-    
-    // Камера
-    const cam = { x: 0, y: 0, zoom: 0.8 };
+    const cam = { x: 0, y: 0, zoom: 0.9 }; // Zoom ближе, т.к. скорость меньше
 
-    // Трасса (Спецучасток - незамкнутый, длинный)
-    // Генерируем извилистую дорогу
-    const trackWidth = 500;
+    // Track Generation
+    const trackWidth = 450;
     const trackPoints = [];
     
     function generateTrack() {
         trackPoints.length = 0;
         let x = 0, y = 0;
-        let angle = -Math.PI / 2; // Вверх
+        let angle = -Math.PI / 2;
         
-        // Старт
-        for(let i=0; i<5; i++) { y-=400; trackPoints.push({x, y}); }
+        for(let i=0; i<6; i++) { y-=300; trackPoints.push({x, y}); } // Start straight
         
-        // Процедурная генерация поворотов
-        for(let i=0; i<40; i++) {
-            // Случайный поворот
-            let curve = (Math.random() - 0.5) * 1.5; 
-            let length = 600 + Math.random() * 600;
-            
-            // Разбиваем поворот на сегменты для плавности
-            let segments = 5;
+        for(let i=0; i<50; i++) {
+            let curve = (Math.random() - 0.5) * 1.8; 
+            let length = 500 + Math.random() * 500;
+            let segments = 6;
             for(let j=0; j<segments; j++) {
                 angle += curve / segments;
                 x += Math.cos(angle) * (length/segments);
@@ -166,128 +157,107 @@
             }
         }
         
-        // Генерируем лес вокруг трассы
+        // Forest
         trees = [];
         for(let i=0; i<trackPoints.length-1; i++) {
-            let p1 = trackPoints[i];
-            let p2 = trackPoints[i+1];
+            let p1 = trackPoints[i], p2 = trackPoints[i+1];
             let dist = Math.hypot(p1.x-p2.x, p1.y-p2.y);
-            let steps = Math.floor(dist / 100);
-            
+            let steps = Math.floor(dist / 80);
             for(let s=0; s<steps; s++) {
                 let t = s/steps;
-                let cx = p1.x + (p2.x-p1.x)*t;
-                let cy = p1.y + (p2.y-p1.y)*t;
-                
-                // Слева и справа
-                if(Math.random()>0.3) trees.push({ x: cx - trackWidth/2 - 100 - Math.random()*300, y: cy + (Math.random()-0.5)*100, r: 40+Math.random()*30 });
-                if(Math.random()>0.3) trees.push({ x: cx + trackWidth/2 + 100 + Math.random()*300, y: cy + (Math.random()-0.5)*100, r: 40+Math.random()*30 });
+                let cx = p1.x + (p2.x-p1.x)*t, cy = p1.y + (p2.y-p1.y)*t;
+                if(Math.random()>0.2) trees.push({ x: cx - trackWidth/2 - 80 - Math.random()*200, y: cy + (Math.random()-0.5)*100, r: 35+Math.random()*25 });
+                if(Math.random()>0.2) trees.push({ x: cx + trackWidth/2 + 80 + Math.random()*200, y: cy + (Math.random()-0.5)*100, r: 35+Math.random()*25 });
             }
         }
     }
 
-    // --- 3. CAR CLASS (RALLY SPEC) ---
+    // --- 3. CAR ---
     class RallyCar {
         constructor() {
             this.x = trackPoints[0].x;
             this.y = trackPoints[0].y + 200;
             this.angle = -Math.PI / 2;
             this.speed = 0;
-            
-            // Векторы движения (для дрифта)
-            this.vx = 0;
-            this.vy = 0;
-            
-            this.w = 34;
-            this.l = 66;
+            // Momentum Vectors
+            this.vx = 0; this.vy = 0;
             this.finished = false;
         }
 
         update() {
             if(this.finished) {
                 this.speed *= 0.95;
-                this.x += this.vx; this.y += this.vy;
+                this.x += Math.cos(this.angle)*this.speed; 
+                this.y += Math.sin(this.angle)*this.speed;
                 return;
             }
 
             // Controls
             if(keys.up) this.speed += PHYS.accel;
-            else if(keys.down) this.speed -= PHYS.accel * 1.5; // Тормоз
-            else this.speed *= PHYS.friction; // Инерция
+            else if(keys.down) this.speed -= PHYS.accel * 1.5;
+            else this.speed *= PHYS.friction; // Heavy rolling
 
             if(this.speed > PHYS.maxSpeed) this.speed = PHYS.maxSpeed;
-            if(this.speed < -6) this.speed = -6;
+            if(this.speed < -5) this.speed = -5;
 
-            // Steering
-            if(Math.abs(this.speed) > 0.5) {
+            // Steering (Heavy feel)
+            if(Math.abs(this.speed) > 0.2) {
                 let dir = this.speed > 0 ? 1 : -1;
-                // На высокой скорости руль "тяжелеет" (меньше угол)
-                let speedFactor = 1 - (Math.abs(this.speed) / PHYS.maxSpeed) * 0.3;
-                
-                if(keys.left) this.angle -= PHYS.turnSpeed * dir * speedFactor;
-                if(keys.right) this.angle += PHYS.turnSpeed * dir * speedFactor;
+                // На малой скорости руль крутится легче, на высокой тяжелее
+                let ratio = Math.min(1, Math.abs(this.speed) / 5);
+                if(keys.left) this.angle -= PHYS.turnSpeed * dir * ratio;
+                if(keys.right) this.angle += PHYS.turnSpeed * dir * ratio;
             }
 
-            // PHYSICS: Drift Math
-            // 1. Куда смотрят колеса
-            let frontX = Math.cos(this.angle) * this.speed;
-            let frontY = Math.sin(this.angle) * this.speed;
+            // --- HEAVY PHYSICS CALC ---
+            // 1. Desired Vector (Wheels)
+            let wheelVx = Math.cos(this.angle) * this.speed;
+            let wheelVy = Math.sin(this.angle) * this.speed;
 
-            // 2. Куда мы летим по инерции (предыдущий вектор)
-            // Плавный переход от инерции к вектору колес
-            this.vx = this.vx * PHYS.driftDecay + frontX * (1 - PHYS.driftDecay);
-            this.vy = this.vy * PHYS.driftDecay + frontY * (1 - PHYS.driftDecay);
+            // 2. Inertia Vector (Previous frame)
+            // driftMass: чем ближе к 1, тем больше машина хочет лететь по старому вектору
+            this.vx = this.vx * PHYS.driftMass + wheelVx * (1 - PHYS.driftMass);
+            this.vy = this.vy * PHYS.driftMass + wheelVy * (1 - PHYS.driftMass);
 
-            // 3. Добавляем Grip (сцепление)
-            // Чем выше скорость и резче поворот, тем меньше сцепление
-            // Но мы упростим: просто смешиваем вектора
-            let finalX = frontX * PHYS.grip + this.vx * (1 - PHYS.grip);
-            let finalY = frontY * PHYS.grip + this.vy * (1 - PHYS.grip);
+            // 3. Apply Grip
+            let moveX = wheelVx * PHYS.grip + this.vx * (1 - PHYS.grip);
+            let moveY = wheelVy * PHYS.grip + this.vy * (1 - PHYS.grip);
+
+            this.x += moveX;
+            this.y += moveY;
             
-            // Обновляем позицию
-            this.x += finalX;
-            this.y += finalY;
-            
-            // Обновляем "инерционный вектор" для следующего кадра (хитрость для дрифта)
-            this.vx = finalX;
-            this.vy = finalY;
+            // Сохраняем вектор инерции для след кадра
+            this.vx = moveX;
+            this.vy = moveY;
 
-            // DUST PARTICLES
-            // Если дрифтуем (разница между углом корпуса и вектором движения)
-            let moveAngle = Math.atan2(this.vy, this.vx);
-            let driftAngle = Math.abs(this.angle - moveAngle);
-            if(driftAngle > 3.14) driftAngle -= 3.14; // Коррекция круга
-
-            if((Math.abs(this.speed) > 8 && driftAngle > 0.2) || (keys.up && Math.abs(this.speed) < 10)) {
-                // Пыль из-под колес
+            // Dust
+            let slip = Math.abs(this.angle - Math.atan2(this.vy, this.vx));
+            if(slip > 0.15 && Math.abs(this.speed) > 5) {
                 for(let i=0; i<2; i++) {
                     particles.push({
-                        x: this.x - Math.cos(this.angle)*25 + (Math.random()-0.5)*20,
-                        y: this.y - Math.sin(this.angle)*25 + (Math.random()-0.5)*20,
-                        vx: (Math.random()-0.5)*2,
-                        vy: (Math.random()-0.5)*2,
-                        life: 40 + Math.random()*20,
-                        size: 5 + Math.random()*10,
-                        c: `rgba(180, 160, 140, ${0.3 + Math.random()*0.3})` // Цвет пыли
+                        x: this.x - Math.cos(this.angle)*25 + (Math.random()-0.5)*15,
+                        y: this.y - Math.sin(this.angle)*25 + (Math.random()-0.5)*15,
+                        life: 30 + Math.random()*20,
+                        size: 4 + Math.random()*6,
+                        c: `rgba(160, 140, 120, ${0.4})`
                     });
                 }
             }
 
-            // COLLISION (Trees)
+            // Tree Collision
             for(let t of trees) {
                 if((this.x-t.x)**2 + (this.y-t.y)**2 < (t.r + 15)**2) {
-                    // Удар о дерево
-                    this.speed *= -0.5;
-                    this.vx *= -0.5; this.vy *= -0.5;
-                    this.x += (this.x - t.x) * 0.1; // Отскок
+                    this.speed *= -0.4; // Heavy impact stop
+                    this.vx *= -0.4; this.vy *= -0.4;
+                    this.x += (this.x - t.x) * 0.1;
                     this.y += (this.y - t.y) * 0.1;
-                    AudioEngine.rev(0); // Звук сброса
+                    AudioEngine.rev(0);
                 }
             }
 
-            // Check Finish
-            let endP = trackPoints[trackPoints.length-1];
-            if(Math.hypot(this.x-endP.x, this.y-endP.y) < 300 && !this.finished) {
+            // Finish
+            let end = trackPoints[trackPoints.length-1];
+            if(Math.hypot(this.x-end.x, this.y-end.y) < 300) {
                 this.finished = true;
                 finishGame();
             }
@@ -300,48 +270,40 @@
             ctx.translate(this.x, this.y);
             ctx.rotate(this.angle);
 
-            // Классическая синяя раллийная машина (Subaru style)
-            
-            // Тень
+            // Shadow
             ctx.fillStyle = 'rgba(0,0,0,0.5)';
-            ctx.fillRect(-18, -18, 36, 36);
+            ctx.fillRect(-17, -17, 34, 34);
 
-            // Колеса (поворачиваются?)
+            // Wheels (Mud flaps)
             ctx.fillStyle = '#222';
-            ctx.fillRect(-18, -20, 10, 12); ctx.fillRect(-18, 8, 10, 12);
-            ctx.fillRect(8, -20, 10, 12); ctx.fillRect(8, 8, 10, 12);
+            ctx.fillRect(-17, -20, 10, 12); ctx.fillRect(-17, 8, 10, 12);
+            ctx.fillRect(7, -20, 10, 12); ctx.fillRect(7, 8, 10, 12);
 
-            // Корпус (Синий)
-            ctx.fillStyle = '#0055aa';
-            // Используем path для аэродинамики
+            // Body (Blue Rally)
+            ctx.fillStyle = '#004488';
             ctx.beginPath();
-            ctx.moveTo(18, -15); ctx.lineTo(18, 15); // Перед
-            ctx.lineTo(-18, 15); ctx.lineTo(-18, -15); // Зад
+            ctx.moveTo(18, -14); ctx.lineTo(18, 14);
+            ctx.lineTo(-18, 14); ctx.lineTo(-18, -14);
             ctx.fill();
 
-            // Желтые наклейки (Ралли ливрея)
+            // Decals (Yellow)
             ctx.fillStyle = '#ffcc00';
-            ctx.fillRect(-5, -15, 10, 30); // Полоса сбоку (в данном случае сверху)
-            // Логотип на капоте
-            ctx.beginPath(); ctx.arc(8, 0, 6, 0, Math.PI*2); ctx.fill();
+            ctx.fillRect(-8, -14, 12, 28); // Roof strip
+            ctx.beginPath(); ctx.arc(10, 0, 5, 0, Math.PI*2); ctx.fill(); // Hood logo
 
-            // Стекла
+            // Glass
             ctx.fillStyle = '#111';
-            ctx.fillRect(-8, -10, 8, 20); // Лобовое
-            ctx.fillRect(-16, -8, 4, 16); // Заднее
+            ctx.fillRect(-6, -10, 6, 20); // Front
+            ctx.fillRect(-16, -8, 4, 16); // Rear
 
-            // Спойлер
-            ctx.fillStyle = '#0055aa';
+            // Spoiler
+            ctx.fillStyle = '#003366';
             ctx.fillRect(-22, -16, 6, 32);
 
-            // Фары
-            ctx.fillStyle = '#fff';
-            ctx.fillRect(16, -14, 4, 6); ctx.fillRect(16, 8, 4, 6);
-            
-            // Стопы
+            // Brake Lights
             if(keys.down) {
                 ctx.fillStyle = '#f00'; ctx.shadowBlur=10; ctx.shadowColor='red';
-                ctx.fillRect(-18, -12, 2, 6); ctx.fillRect(-18, 6, 2, 6);
+                ctx.fillRect(-18, -12, 3, 6); ctx.fillRect(-18, 6, 3, 6);
                 ctx.shadowBlur=0;
             }
 
@@ -349,41 +311,34 @@
         }
     }
 
-    // --- 4. AUDIO ENGINE (SYNTH) ---
+    // --- 4. AUDIO (Deep Engine) ---
     const AudioEngine = {
         ctx: null, osc: null, gain: null,
         init: function() {
             try {
                 const AC = window.AudioContext || window.webkitAudioContext;
                 this.ctx = new AC();
-                this.master = this.ctx.createGain(); this.master.gain.value = 0.15;
+                this.master = this.ctx.createGain(); this.master.gain.value = 0.2;
                 this.master.connect(this.ctx.destination);
-                
                 this.osc = this.ctx.createOscillator();
-                this.osc.type = 'sawtooth'; // Агрессивный звук мотора
-                this.osc.frequency.value = 100;
-                
-                this.gain = this.ctx.createGain();
-                this.gain.gain.value = 0;
-                
-                this.osc.connect(this.gain);
-                this.gain.connect(this.master);
+                this.osc.type = 'sawtooth'; // Deep growl
+                this.osc.frequency.value = 60;
+                this.gain = this.ctx.createGain(); this.gain.gain.value = 0;
+                this.osc.connect(this.gain); this.gain.connect(this.master);
                 this.osc.start();
             } catch(e) {}
         },
         rev: function(speed) {
             if(!this.ctx) return;
-            // Питч зависит от скорости (обороты)
-            let freq = 80 + (speed * 15);
+            // Lower pitch range for "heavy" feel (60Hz - 180Hz)
+            let freq = 60 + (speed * 8); 
             this.osc.frequency.setTargetAtTime(freq, this.ctx.currentTime, 0.1);
-            
-            // Громкость: если стоим - тихо урчит, едем - громко
-            let vol = (speed > 0.1) ? 0.3 : 0.1;
+            let vol = (speed > 0.1 || keys.up) ? 0.25 : 0.05;
             this.gain.gain.setTargetAtTime(vol, this.ctx.currentTime, 0.1);
         }
     };
 
-    // --- 5. MAIN LOOP ---
+    // --- 5. LOOP ---
     function update() {
         if(gameState !== 'GAME') return;
 
@@ -393,30 +348,32 @@
         for(let i=particles.length-1; i>=0; i--) {
             let p = particles[i];
             p.x += p.vx; p.y += p.vy;
-            p.life--;
-            p.size *= 1.02; // Пыль растет
+            p.life--; p.size *= 1.03;
             if(p.life <= 0) particles.splice(i,1);
         }
 
-        // Camera Logic
+        // Camera
         cam.x += (player.x - cam.x) * 0.1;
         cam.y += (player.y - cam.y) * 0.1;
 
-        // UI Updates
-        let time = (Date.now() - startTime) / 1000;
-        document.getElementById('timer').innerText = time.toFixed(2);
+        // UI
+        let t = (Date.now() - startTime) / 1000;
+        document.getElementById('timer').innerText = t.toFixed(2);
         
-        let gear = 'N';
-        if(player.speed > 1) gear = Math.ceil(player.speed / 5);
-        if(player.speed < -1) gear = 'R';
-        document.getElementById('gear').innerText = gear;
+        // Gear Logic (Fake)
+        let s = Math.abs(player.speed);
+        let g = 'N';
+        if(s>0.5) g='1';
+        if(s>6) g='2';
+        if(s>12) g='3'; // Max gear
+        if(player.speed < -0.5) g='R';
+        document.getElementById('gear').innerText = g;
     }
 
     function draw() {
-        if(gameState === 'MENU') { ctx.fillStyle='#0055aa'; ctx.fillRect(0,0,canvas.width,canvas.height); return; }
+        if(gameState === 'MENU') { ctx.fillStyle='#004488'; ctx.fillRect(0,0,canvas.width,canvas.height); return; }
 
-        // Background (Dirt)
-        ctx.fillStyle = '#5d4037'; // Темная земля
+        ctx.fillStyle = '#3e3832'; // Gravel color
         ctx.fillRect(0,0,canvas.width,canvas.height);
 
         ctx.save();
@@ -424,70 +381,48 @@
         ctx.scale(cam.zoom, cam.zoom);
         ctx.translate(-cam.x, -cam.y);
 
-        // Draw Track (Gravel)
+        // Track
         ctx.lineCap = 'round'; ctx.lineJoin = 'round';
-        ctx.lineWidth = trackWidth + 40; 
-        ctx.strokeStyle = 'rgba(0,0,0,0.3)'; // Тень трассы
-        ctx.beginPath(); drawTrackPath(ctx); ctx.stroke();
+        ctx.lineWidth = trackWidth + 50; 
+        ctx.strokeStyle = 'rgba(0,0,0,0.2)'; // Shadow
+        ctx.beginPath(); drawPath(ctx); ctx.stroke();
 
         ctx.lineWidth = trackWidth;
-        ctx.strokeStyle = '#8d6e63'; // Гравий (светлее фона)
+        ctx.strokeStyle = '#6d5e52'; // Track Surface
         ctx.stroke();
         
-        // Следы шин (можно оптимизировать, но пока просто рисуем поверх асфальта)
-        // В реальной игре лучше использовать canvas для следов, но тут упростим
+        // Tire grooves (Visual detail)
+        ctx.lineWidth = trackWidth - 60;
+        ctx.strokeStyle = '#65554a';
+        ctx.stroke();
 
         // Trees
         trees.forEach(t => {
-            // Simple Tree
-            ctx.fillStyle = 'rgba(0,0,0,0.4)'; ctx.beginPath(); ctx.arc(t.x+10, t.y+10, t.r, 0, Math.PI*2); ctx.fill(); // Shadow
-            ctx.fillStyle = '#2e7d32'; ctx.beginPath(); ctx.arc(t.x, t.y, t.r, 0, Math.PI*2); ctx.fill(); // Leaves
-            ctx.fillStyle = '#1b5e20'; ctx.beginPath(); ctx.arc(t.x, t.y, t.r*0.7, 0, Math.PI*2); ctx.fill(); // Detail
+            ctx.fillStyle='rgba(0,0,0,0.3)'; ctx.beginPath(); ctx.arc(t.x+15, t.y+15, t.r, 0, Math.PI*2); ctx.fill();
+            ctx.fillStyle='#2e5a25'; ctx.beginPath(); ctx.arc(t.x, t.y, t.r, 0, Math.PI*2); ctx.fill();
+            ctx.fillStyle='#3e7a35'; ctx.beginPath(); ctx.arc(t.x-5, t.y-5, t.r*0.6, 0, Math.PI*2); ctx.fill();
         });
 
-        // Finish Line
-        let endP = trackPoints[trackPoints.length-1];
-        let prevP = trackPoints[trackPoints.length-2];
-        let angle = Math.atan2(endP.y-prevP.y, endP.x-prevP.x);
-        ctx.save();
-        ctx.translate(endP.x, endP.y);
-        ctx.rotate(angle);
-        ctx.fillStyle = '#fff';
-        ctx.fillRect(0, -trackWidth/2, 20, trackWidth); // Line
-        // Checkered flag pattern
-        for(let i=0; i<10; i++) {
-            ctx.fillStyle = (i%2==0)?'#000':'#fff';
-            ctx.fillRect(0, -trackWidth/2 + i*(trackWidth/10), 20, trackWidth/10);
-        }
-        ctx.restore();
+        // Finish
+        let end = trackPoints[trackPoints.length-1];
+        ctx.fillStyle='#fff'; ctx.beginPath(); ctx.arc(end.x, end.y, 200, 0, Math.PI*2); ctx.globalAlpha=0.3; ctx.fill(); ctx.globalAlpha=1;
 
-        // Particles (Dust is under the car usually, but we draw simple order)
-        particles.forEach(p => {
-            ctx.fillStyle = p.c;
-            ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, Math.PI*2); ctx.fill();
-        });
-
-        // Player
+        particles.forEach(p => { ctx.fillStyle=p.c; ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, Math.PI*2); ctx.fill(); });
         player.draw(ctx);
 
         ctx.restore();
     }
 
-    function drawTrackPath(c) {
+    function drawPath(c) {
         c.moveTo(trackPoints[0].x, trackPoints[0].y);
         for(let i=1; i<trackPoints.length; i++) c.lineTo(trackPoints[i].x, trackPoints[i].y);
     }
 
-    function loop() {
-        requestAnimationFrame(loop);
-        update();
-        draw();
-    }
+    function loop() { requestAnimationFrame(loop); update(); draw(); }
 
     function startGame() {
         AudioEngine.init();
         if(AudioEngine.ctx && AudioEngine.ctx.state==='suspended') AudioEngine.ctx.resume();
-
         document.getElementById('start-screen').classList.add('hidden');
         document.getElementById('gameover-screen').classList.add('hidden');
         
@@ -500,33 +435,23 @@
     }
 
     function finishGame() {
-        let time = (Date.now() - startTime) / 1000;
-        document.getElementById('final-time').innerText = time.toFixed(2);
+        let t = (Date.now()-startTime)/1000;
+        document.getElementById('final-time').innerText = t.toFixed(2);
         document.getElementById('gameover-screen').classList.remove('hidden');
     }
 
-    // --- CONTROLS ---
-    function bindBtn(id, k) {
+    // Input
+    function bind(id, k) {
         const b = document.getElementById(id);
-        const s = (v) => { keys[k] = v; v?b.style.opacity=0.5:b.style.opacity=1; };
+        const s = (v) => { keys[k] = v; v?b.style.opacity=0.6:b.style.opacity=1; };
         b.addEventListener('touchstart', e=>{e.preventDefault(); s(true)},{passive:false});
         b.addEventListener('touchend', e=>{e.preventDefault(); s(false)},{passive:false});
-        b.addEventListener('mousedown', ()=>s(true)); 
-        b.addEventListener('mouseup', ()=>s(false));
+        b.addEventListener('mousedown', ()=>s(true)); b.addEventListener('mouseup', ()=>s(false));
     }
-    bindBtn('b-gas','up'); bindBtn('b-brake','down');
-    bindBtn('b-left','left'); bindBtn('b-right','right');
+    bind('b-gas','up'); bind('b-brake','down'); bind('b-left','left'); bind('b-right','right');
 
-    window.onkeydown=e=>{
-        if(e.code=='ArrowUp')keys.up=true;
-        if(e.code=='ArrowDown')keys.down=true;
-        if(e.code=='ArrowLeft')keys.left=true;if(e.code=='ArrowRight')keys.right=true;
-    };
-    window.onkeyup=e=>{
-        if(e.code=='ArrowUp')keys.up=false;
-        if(e.code=='ArrowDown')keys.down=false;
-        if(e.code=='ArrowLeft')keys.left=false;if(e.code=='ArrowRight')keys.right=false;
-    };
+    window.onkeydown=e=>{ if(e.code=='ArrowUp')keys.up=true; if(e.code=='ArrowDown')keys.down=true; if(e.code=='ArrowLeft')keys.left=true; if(e.code=='ArrowRight')keys.right=true; };
+    window.onkeyup=e=>{ if(e.code=='ArrowUp')keys.up=false; if(e.code=='ArrowDown')keys.down=false; if(e.code=='ArrowLeft')keys.left=false; if(e.code=='ArrowRight')keys.right=false; };
 
     loop();
 </script>
