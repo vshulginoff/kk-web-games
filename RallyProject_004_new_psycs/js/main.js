@@ -1,7 +1,7 @@
 import { appSettings, carState, gameData, loadSettings } from './config.js';
 import { setupControls } from './controls.js';
-import { loadTrack, createEnvironment, updateWorldEnv, trackNodes } from './_world.js';
-import { car, createCar, updatePhysics, updateParticles } from './_car.js';
+import { loadTrack, createEnvironment, updateWorldEnv, trackNodes } from './world.js';
+import { car, createCar, updatePhysics, updateParticles } from './car.js';
 import { setupUI, updateHUD, renderMinimap } from './ui.js';
 
 window.RALLY_DEBUG_DATA = [`System Init: ${new Date().toISOString()}`];
