@@ -1,6 +1,6 @@
 import { appSettings, carState, gameData } from './config.js';
 import { keys } from './controls.js';
-import { trackNodes, obstacles } from './_world.js'; 
+import { trackNodes, obstacles } from './world.js'; 
 
 export let car;
 export const particles = [];
@@ -155,7 +155,7 @@ export function updatePhysics(scene) {
         currentGrip *= 0.3; // Машина теряет контроль
         terrainDrag = 0.88; // Жестко вязнет, теряет скорость
         
-        // Математика кювета из _world.js (наклон вверх на 15 юнитов шириной 30)
+        // Математика кювета из world.js (наклон вверх на 15 юнитов шириной 30)
         let bankDepth = minD - nodeWidth;
         carState.y += Math.min(bankDepth * 0.5, 15); 
         
