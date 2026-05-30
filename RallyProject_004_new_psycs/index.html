@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>3D Rally: Radar & Controls Fix</title>
+    
+    <script src="js/three.min.js"></script>
+    
+    <style>
+        @font-face {
+            font-family: 'Press Start 2P';
+            src: url('fonts/PressStart2P-Regular.ttf') format('truetype');
+            font-weight: normal; font-style: normal;
+        }
+        
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; touch-action: none; user-select: none; margin: 0; padding: 0; }
+        
+        body { width: 100vw; height: 100dvh; overflow: hidden; background: #000; font-family: 'Press Start 2P', cursive; position: relative; }
+        
+        /* Жесткая привязка игрового экрана и панели управления */
+        #game-container { position: absolute; top: 0; left: 0; width: 100%; height: calc(100dvh - 150px); overflow: hidden; background: #a8d5e5; }
+        #gameCanvas { display: block; width: 100%; height: 100%; }
+        
+        #controls-bar { position: absolute; bottom: 0; left: 0; width: 100%; height: 150px; background: #1a1f24; display: flex; justify-content: space-around; align-items: center; padding: 10px; border-top: 4px solid #2c3e50; z-index: 1000; padding-bottom: env(safe-area-inset-bottom); }
+        
+        .ui-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; padding: 15px; z-index: 10; }
+        .hud-top-left { position: absolute; top: 15px; left: 15px; display: flex; flex-direction: column; gap: 10px; align-items: flex-start; }
+        .timer-text { font-size: 20px; color: #00f7ff; text-shadow: 2px 2px 0 #000; background: rgba(0,0,0,0.5); padding: 10px; border: 2px solid #fff; }
+        
+        #btn-pause { background: rgba(0,0,0,0.5); color: #fff; border: 2px solid #fff; border-radius: 8px; padding: 10px 15px; font-size: 14px; font-family: 'Press Start 2P'; cursor: pointer; pointer-events: auto; text-shadow: 2px 2px 0 #000; box-shadow: 0 4px 0 rgba(0,0,0,0.5); }
+        #btn-pause:active { transform: translateY(4px); box-shadow: none; }
+
+        #minimap-container { position: absolute; top: 15px; right: 15px; width: 110px; height: 110px; background: rgba(0, 0, 0, 0.5); border: 3px solid #00f7ff; border-radius: 50%; overflow: hidden; pointer-events: auto; cursor: pointer; transition: transform 0.1s; box-shadow: 0 4px 10px rgba(0,0,0,0.5); backdrop-filter: blur(2px); }
+        #minimap-container:active { transform: scale(0.95); border-color: #f39c12; }
+        #minimap-canvas { width: 100%; height: 100%; background: transparent; }
+
+        #settings-menu { position: fixed; top: 0; right: 0; bottom: 0; left: 0; margin: auto; width: 95%; max-width: 450px; height: fit-content; max-height: calc(100dvh - max(40px, env(safe-area-inset-top) + env(safe-area-inset-bottom))); display: flex; flex-direction: column; background: rgba(20, 25, 30, 0.85); border: 4px solid #f39c12; border-radius: 10px; padding: 20px 10px 15px 20px; z-index: 2000; pointer-events: auto; color: #fff; font-size: 12px; backdrop-filter: blur(10px); box-shadow: 0 10px 30px rgba(0,0,0,0.8); }
+        #settings-menu h2 { color:#f39c12; text-align:center; font-size: 18px; margin-bottom: 15px; flex-shrink: 0; padding-right: 10px;}
+        .settings-content { overflow-y: auto; flex-grow: 1; padding-right: 15px; display: flex; flex-direction: column; gap: 12px; min-height: 0; touch-action: pan-y; -webkit-overflow-scrolling: touch; cursor: grab; }
+        .settings-content:active { cursor: grabbing; }
+        .settings-content::-webkit-scrollbar { width: 24px; }
+        .settings-content::-webkit-scrollbar-track { background: rgba(0, 0, 0, 0.4); border-radius: 12px; }
+        .settings-content::-webkit-scrollbar-thumb { background: #f39c12; border-radius: 12px; border: 5px solid rgba(20, 25, 30, 0.85); }
+        .settings-content::-webkit-scrollbar-thumb:active { background: #e67e22; }
+
+        h3 { color:#00f7ff; font-size: 12px; border-bottom: 2px solid #00f7ff; padding-bottom: 5px; margin-top: 5px; margin-bottom: 0px;}
+        .settings-row { display: flex; flex-direction: column; gap: 6px; }
+        .slider-group { display: flex; align-items: center; gap: 10px; width: 100%; }
+        .slider-group input[type=range] { flex-grow: 1; accent-color: #f39c12; height: 10px; cursor: pointer; }
+        .adj-btn { width: 30px; height: 30px; flex-shrink: 0; background: #2c3e50; color: #f39c12; border: 2px solid #f39c12; border-radius: 5px; font-family: 'Press Start 2P', cursive; font-size: 16px; cursor: pointer; display: flex; justify-content: center; align-items: center; padding-bottom: 2px; }
+        .adj-btn:active { background: #f39c12; color: #000; transform: scale(0.9); }
+        
+        .settings-btns { display: flex; gap: 10px; margin-top: 15px; padding-top: 15px; border-top: 2px solid #f39c12; flex-shrink: 0; margin-right: 10px; flex-wrap: wrap;}
+        .s-btn { flex: 1 1 45%; padding: 12px; border: none; font-family: 'Press Start 2P'; font-size: 10px; cursor: pointer; border-radius: 5px; color: #000; box-shadow: 0 4px 0 rgba(0,0,0,0.5); }
+        .s-btn:active { transform: translateY(4px); box-shadow: none; }
+        #btn-export { background: #3498db; color: white; box-shadow: 0 4px 0 #1d6fa5; }
+        #btn-reset { background: #e67e22; color: white; box-shadow: 0 4px 0 #a65b18; }
+        #btn-close { background: #e74c3c; color: white; box-shadow: 0 4px 0 #a83227;}
+
+        /* ИСПРАВЛЕНО: Уменьшена ширина кнопок с 22% до 18% для вмещения ручника */
+        .c-btn { height: 85%; width: 18%; border-radius: 12px; border: none; display: flex; align-items: center; justify-content: center; font-size: 20px; color: #1a1f24; box-shadow: 0 6px 0 #0b0c10; cursor: pointer; font-family: 'Press Start 2P', cursive; }
+        .c-btn:active { transform: translateY(6px); box-shadow: none; }
+        #btn-l, #btn-r { background: #c5c6c7; font-size: 28px; }
+        #btn-b { background: #e74c3c; color: #fff; }
+        #btn-a { background: #2ecc71; color: #fff; }
+        
+        /* ИСПРАВЛЕНО: Добавлены стили для ручника (HB) */
+        #btn-hb { background: #f39c12; color: #fff; }
+        
+        .menu-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 500; pointer-events: auto; }
+        .menu-overlay h1 { color: #00f7ff; margin-bottom: 20px; font-size: 28px; text-shadow: 3px 3px 0 #000; text-align: center; line-height: 1.5; }
+        .track-btns { display: flex; flex-direction: column; gap: 15px; margin-top: 20px; width: 80%; max-width: 300px;}
+        .play-btn { padding: 15px; font-size: 16px; background: #2ecc71; border: none; border-radius: 10px; color: white; cursor: pointer; font-family: inherit; box-shadow: 0 6px 0 rgba(0,0,0,0.5); transition: 0.1s;}
+        .play-btn:active { transform: translateY(6px); box-shadow: none; }
+        .btn-night { background: #34495e; border: 2px solid #5d6d7e; }
+        .btn-orange { background: #e67e22; box-shadow: 0 6px 0 #a65b18; }
+        .btn-red { background: #e74c3c; box-shadow: 0 6px 0 #a83227; }
+        .hidden { display: none !important; }
+    </style>
+</head>
+<body>
+    <div id="game-container">
+        <canvas id="gameCanvas"></canvas>
+        <div class="ui-layer">
+            <div class="hud-top-left">
+                <div class="timer-text" id="timer">00:00.00</div>
+                <button id="btn-pause" class="hidden">⏸ PAUSE</button>
+            </div>
+            <div id="minimap-container"><canvas id="minimap-canvas" width="110" height="110"></canvas></div>
+        </div>
+
+        <div id="settings-menu" class="hidden">
+            <h2>SETTINGS</h2>
+            <div class="settings-content">
+                <h3>CAMERA</h3>
+                <div class="settings-row"><label>Distance: <span id="val-dist">35</span></label><div class="slider-group"><button class="adj-btn minus" data-target="inp-dist">-</button><input type="range" id="inp-dist" min="10" max="100" step="1"><button class="adj-btn plus" data-target="inp-dist">+</button></div></div>
+                <div class="settings-row"><label>Height: <span id="val-height">15</span></label><div class="slider-group"><button class="adj-btn minus" data-target="inp-height">-</button><input type="range" id="inp-height" min="2" max="60" step="1"><button class="adj-btn plus" data-target="inp-height">+</button></div></div>
+                <div class="settings-row"><label>Look Target Y: <span id="val-look">5</span></label><div class="slider-group"><button class="adj-btn minus" data-target="inp-look">-</button><input type="range" id="inp-look" min="-10" max="30" step="1"><button class="adj-btn plus" data-target="inp-look">+</button></div></div>
+                <div class="settings-row"><label>Smoothness: <span id="val-lerp">0.2</span></label><div class="slider-group"><button class="adj-btn minus" data-target="inp-lerp">-</button><input type="range" id="inp-lerp" min="0.01" max="1" step="0.01"><button class="adj-btn plus" data-target="inp-lerp">+</button></div></div>
+                <div class="settings-row"><label>Inertia Sway: <span id="val-sway">0.8</span></label><div class="slider-group"><button class="adj-btn minus" data-target="inp-sway">-</button><input type="range" id="inp-sway" min="0" max="2" step="0.1"><button class="adj-btn plus" data-target="inp-sway">+</button></div></div>
+                
+                <h3>PHYSICS</h3>
+                <div class="settings-row"><label>Max Speed: <span id="val-spd">25</span></label><div class="slider-group"><button class="adj-btn minus" data-target="inp-spd">-</button><input type="range" id="inp-spd" min="10" max="60" step="0.5"><button class="adj-btn plus" data-target="inp-spd">+</button></div></div>
+                <div class="settings-row"><label>Acceleration: <span id="val-acc">0.35</span></label><div class="slider-group"><button class="adj-btn minus" data-target="inp-acc">-</button><input type="range" id="inp-acc" min="0.05" max="2.0" step="0.01"><button class="adj-btn plus" data-target="inp-acc">+</button></div></div>
+                <div class="settings-row"><label>Tire Grip: <span id="val-grip">0.12</span></label><div class="slider-group"><button class="adj-btn minus" data-target="inp-grip">-</button><input type="range" id="inp-grip" min="0.01" max="0.5" step="0.01"><button class="adj-btn plus" data-target="inp-grip">+</button></div></div>
+                <div class="settings-row"><label>Turn Speed: <span id="val-turn">0.05</span></label><div class="slider-group"><button class="adj-btn minus" data-target="inp-turn">-</button><input type="range" id="inp-turn" min="0.01" max="0.15" step="0.01"><button class="adj-btn plus" data-target="inp-turn">+</button></div></div>
+                <div class="settings-row"><label>Track Friction: <span id="val-drag">0.985</span></label><div class="slider-group"><button class="adj-btn minus" data-target="inp-drag">-</button><input type="range" id="inp-drag" min="0.900" max="1.000" step="0.001"><button class="adj-btn plus" data-target="inp-drag">+</button></div></div>
+            </div>
+            <div class="settings-btns">
+                <button class="s-btn" id="btn-export">💾 SAVE</button>
+                <button class="s-btn" id="btn-reset">♻️ RESET</button>
+                <button class="s-btn" id="btn-close">CLOSE</button>
+            </div>
+        </div>
+        
+        <div id="start-menu" class="menu-overlay">
+            <h1>SELECT TRACK</h1>
+            <p style="color:#fff; margin-bottom: 10px; font-size: 10px;">Tap Minimap for Settings</p>
+            <div class="track-btns">
+                <button class="play-btn" id="btn-track-snow">❄️ SNOW RALLY</button>
+                <button class="play-btn btn-night" id="btn-track-night">🌙 NIGHT RAIN</button>
+            </div>
+        </div>
+
+        <div id="pause-menu" class="menu-overlay hidden">
+            <h1>PAUSED</h1>
+            <div class="track-btns">
+                <button class="play-btn" id="btn-resume">▶ RESUME</button>
+                <button class="play-btn" id="btn-toggle-lights" style="background:#f1c40f; color:#000; box-shadow: 0 6px 0 #b7950b;">💡 HEADLIGHTS: ON</button>
+                <button class="play-btn btn-orange" id="btn-restart-pause">🔄 RESTART</button>
+                <button class="play-btn btn-red" id="btn-main-menu">🏠 MAIN MENU</button>
+            </div>
+        </div>
+
+        <div id="finish-menu" class="menu-overlay hidden">
+            <h1 style="color: #2ecc71;">FINISH!</h1>
+            <p id="final-time-text" style="color:#fff; margin-bottom: 20px; font-size: 16px;">TIME: 00:00.00</p>
+            <div class="track-btns">
+                <button class="play-btn btn-orange" id="btn-restart">🔄 RESTART</button>
+                <button class="play-btn btn-red" id="btn-menu-from-finish">🏠 MENU</button>
+            </div>
+        </div>
+    </div>
+    
+    <div id="controls-bar">
+        <button class="c-btn" id="btn-l">◀</button>
+        <button class="c-btn" id="btn-r">▶</button>
+        <button class="c-btn" id="btn-hb">HB</button>
+        <button class="c-btn" id="btn-b">BRK</button>
+        <button class="c-btn" id="btn-a">GAS</button>
+    </div>
+
+    <script type="module" src="js/_main.js"></script>
+</body>
+</html>
+
