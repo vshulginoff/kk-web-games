@@ -1,5 +1,5 @@
 import { carState, gameData, appSettings, saveSettings } from './config.js';
-import { trackNodes } from './_world.js'; 
+import { trackNodes } from './world.js'; 
 
 export function setupUI() {
     const menu = document.getElementById('settings-menu');
